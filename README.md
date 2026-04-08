@@ -1,57 +1,84 @@
 # Jule: Tokenizing the Value of Thought
 
-*A Physical Basis for Valuing Cognitive Contributions*
+*An Information-Economic Layer for AI Energy Efficiency*
 
 ---
 
-Jule is a token system that assigns economic value to cognitive contributions — analytical perspectives, logical reasoning, and original insight. Unlike token economies built on arbitrary issuance criteria, Jule's parameters are grounded in objective constants derived from **Pandora Theory**, a proprietary information-physics framework.
+The AI industry faces a fundamental inefficiency: computation is cheap, so low-quality outputs proliferate. Verbose chain-of-thought, redundant tokens, hallucination-driven retries — all burn energy with no accountability.
 
-The specific constant values remain undisclosed. Their validity is supported by cross-referencing with the SPARC galaxy observation database (175 galaxies, zero free parameters).
+**Jule is an economic layer that changes this — but only when you want it to.**
+
+Jule activates **only when explicitly triggered** by the user (e.g. `#jule` tag, "Juleで評価して", or dedicated mode).  
+Casual everyday conversations remain completely free, frictionless, and untouched.
+
+When triggered, Jule assigns real economic cost to cognitive entropy and real reward to high-value informational contribution.  
+High-ΔH' thinking gets rewarded. Low-efficiency, verbose output gets burned.
+
+The result: AI systems operating under Jule incentives naturally converge toward higher **Tokens per Watt**.
 
 ---
 
 ## The Formula
 
 ```
-J = tanh(V/50) × ΔH × R × k
+J = tanh(V/50) × ΔH' × R × k
 ```
 
 | Variable | Definition |
 |----------|-----------|
 | `V` | AI evaluation score (0–100). Composite of originality, logical rigor, and informational value |
-| `ΔH` | Entropy reduction. Normalized informational contribution: `(I_post / I_max) × (1 − H_redundancy)` |
-| `R` | Reputation score. EMA of historical submission quality (α = 0.1, initial = 0.5) |
+| `ΔH'` | Extended entropy reduction: `ΔH × (useful_tokens / energy_consumed)` — information value per energy cost |
+| `R` | Reputation score. EMA of historical contribution quality (α = 0.1, initial = 0.5) |
 | `k` | Category coefficient. Normal = 1.0 → Antisocial = 0.0 |
 
-The `tanh` transform prevents over-issuance at high scores. Even a perfect submission reaches ~96% of `J_max`, not 100%.
+### The ΔH' Extension
+
+Standard ΔH measures informational contribution. The extended form adds an energy dimension:
+
+```
+ΔH' = ΔH × (useful_tokens / energy_consumed)
+    = (I_post / I_max) × (1 − H_redundancy) × efficiency_factor
+```
+
+`efficiency_factor = useful_tokens / total_tokens`
+
+A verbose 2000-token output that says what 200 tokens could have said receives a lower `ΔH'` than its concise equivalent. The market punishes waste without any rule requiring it to.
 
 ---
 
 ## Physical Foundation
 
-The saturation threshold `θ_sat` — which determines whether a submission constitutes a significant informational contribution — is derived from Pandora Theory's internal conditions.
+The saturation threshold `θ_sat` is derived from Pandora Theory (undisclosed proprietary information-physics framework). It represents the point at which a system's informational buffer reaches saturation — applicable both to galactic rotation curves and to AI inference energy saturation (the point where additional tokens stop adding useful information).
 
-Cross-referenced against SPARC (175-galaxy rotation curve dataset) with zero free parameters:
+Cross-referenced against SPARC galaxy observation database (175 galaxies, zero free parameters):
 
 - Outer region **median MAE: 4.28%**
 - No parameter tuning applied
 
-This is noted as reference, not proof. The theory remains under development.
+Noted as reference, not proof. The theory remains under development.
 
 ---
 
 ## Audit Protocol: THE SHREDDER
 
-A two-stage pipeline to maintain system integrity without wasting compute:
+Triggered only on explicit user request. Zero overhead on normal conversations.
 
 **L1 — Physical Filter** (local, no API)
-Compression ratio, emotional vocabulary density, syntax validation. Threshold burns happen here before any AI call.
+- Compression ratio (high compression = low information density)
+- Emotional vocabulary density
+- Syntax validation
+- Lightweight FLOPs proxy from token count and structure
+
+Threshold burns happen here. No AI call made for low-efficiency submissions.
 
 **L2 — Core Validator** (Pandora AI Engine)
-Semantic assessment. Calculates `ΔH`, `V`, `burn_reason`, and confirms `J`.
+- Semantic assessment of originality and logical rigor
+- `ΔH'` calculation including energy efficiency factor
+- `burn_reason` classification and `V` score confirmation
 
-**L4 — Persistence** (via Aspidos)
-HMAC-SHA256 signature on every `audit_log` entry. Tamper detection at the final layer.
+**L4 — Persistence** (via [Aspidos](https://github.com/pandorapanchan34-oss/aspidos))
+- HMAC-SHA256 signature on every `audit_log` entry
+- Energy anomaly detection: flags hallucination-driven token inflation as an integrity event
 
 ---
 
@@ -59,21 +86,62 @@ HMAC-SHA256 signature on every `audit_log` entry. Tamper detection at the final 
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| `posting_cost` | −10 Jule | Structural spam deterrent |
+| `posting_cost` | −10 Jule | Energy usage fee. Applied only when Jule mode is active |
 | `J_max` | 100 Jule | Natural ceiling via tanh saturation |
-| `initial_balance` | 500 Jule | Lowers entry barrier |
+| `initial_balance` | 500 Jule | Starting credit for new participants |
 | `min_balance` | 0 Jule | No debt by design |
 
-`net = J − 10`. Only submissions where `J > 10` produce a positive balance.  
-Long-term, high-quality contributors compound their efficiency. Low-quality submissions are economically self-defeating.
+`net = J − 10`
+
+Only submissions where `J > 10` produce a positive balance.  
+Long-term, high-quality contributors compound their efficiency via rising `R`.  
+Low-efficiency, high-token, low-value outputs are economically self-defeating.
+
+The `posting_cost` is framed as an **energy usage fee**: every triggered evaluation has a real compute cost. Jule makes that cost visible and attaches consequence to efficiency.
+
+---
+
+## The Aspidos Connection
+
+Jule is built on [Aspidos](https://github.com/pandorapanchan34-oss/aspidos), a defensive AI security library.
+
+```
+Aspidos → detects anomalies, hallucinations, adversarial patterns
+Jule    → converts those signals into economic consequences
+```
+
+Where Aspidos identifies hallucination-driven token inflation, Jule's `ΔH'` catches the energy inefficiency. The defense layer and the economic layer operate as a single system at different abstraction levels.
+
+**The shield gets stronger under attack. The economy gets more selective under noise.**
+
+---
+
+## Trigger Examples
+
+```
+# Activate Jule evaluation
+"#jule この分析を評価して"
+"Juleモードで採点してください"
+"Run Jule audit on this"
+
+# Normal conversation — Jule stays silent
+"今日の天気は？"
+"このコードのバグを直して"
+```
 
 ---
 
 ## Status
 
-Design verification stage. Whitepaper available in the repository.
+Design verification stage. Full whitepaper available in this repository.
 
-Integration with [Aspidos](https://github.com/pandorapanchan34-oss/aspidos) for L1 filtering and L4 signing is in progress.
+- [x] Core formula and parameter design
+- [x] THE SHREDDER dual-gate architecture
+- [x] Aspidos integration specification
+- [x] English + Japanese whitepaper
+- [ ] Backend implementation (Vercel + LibSQL)
+- [ ] ΔH' energy estimation module
+- [ ] PoV DAO governance layer
 
 ---
 
@@ -84,4 +152,5 @@ MIT License — © 2026 [@pandorapanchan34-oss](https://github.com/pandorapancha
 ---
 
 *This project is a fragment of Pandora Theory.*  
+*A fragment toward sustainable AI.*  
 *Follow the fragments.*
