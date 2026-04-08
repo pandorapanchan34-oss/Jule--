@@ -149,8 +149,14 @@ Design verification stage. Full whitepaper available in this repository.
 
 MIT License — © 2026 [@pandorapanchan34-oss](https://github.com/pandorapanchan34-oss)
 
+## 🛡 Built on the Aspidos Ecosystem
+
+This project is part of a growing defensive layer for AI systems.
+
+- **[Aspidos](https://pandorapanchan34-oss.github.io/aspidos/)** — Lightweight anomaly detection engine
+- **[Aspidos-AI](https://pandorapanchan34-oss.github.io/aspidos-ai/)** — TruthGate layer with cryptographic responsibility
+
+*Each project is a fragment of Pandora Theory.*  
+*Follow the fragments.* 🗺️
 ---
 
-*This project is a fragment of Pandora Theory.*  
-*A fragment toward sustainable AI.*  
-*Follow the fragments.*
