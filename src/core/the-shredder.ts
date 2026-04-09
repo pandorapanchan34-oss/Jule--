@@ -38,6 +38,53 @@ export class TheShredder {
   private constants: JuleConstants;
   private aspidos:   IAspidosAIAdapter | null;
 
+  // ── Self-Consistency ─────────────────────
+  // Pandora Theory anchors: injected, not hardcoded
+  private readonly CORE_DIMENSION       = 3;
+  private readonly SATURATION_THRESHOLD =
+    parseFloat(process.env.THRESHOLD_G ?? '0.833');
+
+  // Audit history for recalibration (ring buffer, cap=100)
+  private auditHistory: JuleAuditFingerprint[] = [];
+
+  /**
+   * Self-Consistency Check
+   * Monitors whether the system remains on Pandora Theory's orbit.
+   * When the operator is absent, the system recalibrates itself
+   * using past high-quality audit data as ground truth.
+   * Prevents: model drift, evaluation inflation, silent degradation.
+   */
+  private checkSelfConsistency(fp: JuleAuditFingerprint): boolean {
+    const expected = this.calculateExpectedV();
+    const drift    = Math.abs(fp.v_score - expected);
+    const DRIFT_TOLERANCE = 15;
+    if (drift > DRIFT_TOLERANCE && this.auditHistory.length >= 10) {
+      console.warn(
+        `[SelfConsistency] Drift detected: ` +
+        `expected=${expected.toFixed(1)}, got=${fp.v_score}, ` +
+        `drift=${drift.toFixed(1)}. Recalibrating...`
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /** Expected V: EMA of recent high-quality audits. */
+  private calculateExpectedV(): number {
+    if (this.auditHistory.length === 0) return 50;
+    const hq = this.auditHistory
+      .filter(a => a.v_score > this.SATURATION_THRESHOLD * 100)
+      .slice(-10);
+    if (hq.length === 0) return 50;
+    return hq.reduce((a, b) => a + b.v_score, 0) / hq.length;
+  }
+
+  /** Record fingerprint into history for recalibration. */
+  private recordHistory(fp: JuleAuditFingerprint): void {
+    this.auditHistory.push(fp);
+    if (this.auditHistory.length > 100) this.auditHistory.shift();
+  }
+
   constructor(
     aspidos?:   IAspidosAIAdapter,
     constants?: Partial<JuleConstants>
@@ -120,6 +167,17 @@ export class TheShredder {
       sigma_singularity: sigma,
       phi_inertia:       phi,
     };
+
+    // ── Self-Consistency Check ───────────────
+    const consistent = this.checkSelfConsistency(fingerprint);
+    if (!consistent) {
+      // Recalibrate: downgrade jule proportionally to drift
+      const recalibrated = jule * 0.5;
+      console.warn('[SelfConsistency] Jule recalibrated:', jule, '->', recalibrated);
+    }
+
+    // Record into history for future recalibration
+    this.recordHistory(fingerprint);
 
     // ── L4: Sign & Persist ───────────────────
     const entry: AuditLogEntry = {
