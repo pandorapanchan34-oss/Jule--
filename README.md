@@ -18,22 +18,18 @@ The result: AI systems operating under Jule incentives naturally converge toward
 
 ---
 
-## Quick Start
+---
 
-\`\`\`bash
-npm install jule-ai-energy
-\`\`\`
+## ⚡ Quick Guide: The Jule Loop
 
-\`\`\`typescript
-import { TheShredder, MockAspidosAIAdapter } from 'jule-ai-energy';
+| You Want to... | Take This Action | The Outcome |
+|:--- |:--- |:--- |
+| **Prove Value** | Use `#jule` or "Juleで評価" | Get a cryptographic **Audit Score** and **Jule tokens**. |
+| **Save Energy** | Optimize your prompts (concise/rigorous) | **ΔH' rises**. Your reputation **R** compounds faster. |
+| **Filter Noise** | Deploy **THE SHREDDER** L1 | Burn redundant tokens before they hit your API bill. |
+| **Verify Truth** | Integrate **AspidosAI** | Hallucinations are detected and economically punished. |
 
-const shredder = new TheShredder(new MockAspidosAIAdapter());
-const result = await shredder.executeAudit(
-  'your transmission here',
-  [], 0.5, l2Evaluations
-);
-console.log(result.jule, result.fingerprint);
-\`\`\`
+---
 
 ## The Formula
 
