@@ -156,13 +156,19 @@ This project is part of a growing defensive layer for AI systems.
 - **[Aspidos](https://pandorapanchan34-oss.github.io/aspidos/)** — Lightweight anomaly detection engine
 - **[Aspidos-AI](https://pandorapanchan34-oss.github.io/aspidos-ai/)** — TruthGate layer with cryptographic responsibility
 
-*This is a fragment of Pandora Theory (Pandora Panchan, 2026).*
+<h2 align="center">
+  <i>This is a fragment of Pandora Theory (Pandora Panchan, 2026).</i>
+</h2>
 
-*Take it if you want.*
-*Build on it if you can.*
+<p align="center">
+  <strong>Take it if you want.</strong><br>
+  <strong>Build on it if you can.</strong>
+</p>
 
-*The rest is up to you.*
+<p align="center">
+  <em>The rest is up to you.</em><br>
+  <strong>Follow the fragments. 🗺️</strong>
+</p>
 
-*Follow the fragments. 🗺️*
+<hr>
 
----
