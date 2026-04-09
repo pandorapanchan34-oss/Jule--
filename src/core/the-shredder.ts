@@ -15,6 +15,10 @@ import { calculatePhi, exclusionMultiplier, hashContent }
 import { calculateDeltaHPrime, calculateEnergySaved }
                                 from '../fingerprint/delta-h-prime.js';
 import { calculateJule, calculateNet } from './jule-calculator.js';
+import { detectGenre, getFingerprintBucket, calculateDecay,
+         incrementRepetition, crossGenreBonus, detectEchoChamber }
+                                from '../fingerprint/gamma.js';
+import type { GenreRepetitionMap, JuleGenre } from '../types/index.js';
 
 const DEFAULT_CONSTANTS: JuleConstants = {
   POSTING_COST:     10,
@@ -46,6 +50,12 @@ export class TheShredder {
 
   // Audit history for recalibration (ring buffer, cap=100)
   private auditHistory: JuleAuditFingerprint[] = [];
+
+  // Genre repetition tracking for decay loop
+  private repMap: GenreRepetitionMap = {};
+
+  // Recent genres for echo chamber detection
+  private recentGenres: JuleGenre[] = [];
 
   /**
    * Self-Consistency Check
@@ -142,9 +152,43 @@ export class TheShredder {
     const delta_h_prime = calculateDeltaHPrime(l2Evaluations, sigma);
     const energy_saved  = calculateEnergySaved(l2Evaluations);
 
+    // ── γ: Genre Detection + Decay Loop ─────
+    const genre  = detectGenre(transmission);
+    const bucket = getFingerprintBucket({
+      v_score: v, delta_h_prime, k_reality,
+      sigma_singularity: sigma, phi_inertia: phi,
+      gamma_genre: genre, delta_h_effective: 0, repetition_count: 0,
+    });
+    const decay = calculateDecay(
+      'user', genre, bucket, delta_h_prime, this.repMap
+    );
+
+    // Echo chamber check
+    this.recentGenres.push(genre);
+    if (this.recentGenres.length > 50) this.recentGenres.shift();
+    const echoCheck = detectEchoChamber(this.recentGenres);
+    if (echoCheck.dominant_genre) {
+      console.warn('[EchoChamber] Risk detected:', echoCheck);
+    }
+
+    // Instant burn if echo chamber loop complete
+    if (decay.is_echo_chamber) {
+      return this.burnResult(
+        transmission_id, content_hash,
+        'Echo Chamber: 11-loop decay complete', history
+      );
+    }
+
+    // Apply cross-genre bonus
+    const genre_bonus    = crossGenreBonus(genre);
+    const delta_h_final  = decay.delta_h_effective * genre_bonus;
+
+    // Update repetition map
+    this.repMap = incrementRepetition('user', genre, bucket, this.repMap);
+
     // ── Jule Calculation ─────────────────────
     const jule = calculateJule({
-      v, delta_h: delta_h_prime,
+      v, delta_h: delta_h_final,
       reputation: userReputation,
       k: k_reality, sigma, phi,
     });
@@ -166,6 +210,9 @@ export class TheShredder {
       k_reality,
       sigma_singularity: sigma,
       phi_inertia:       phi,
+      gamma_genre:       genre,
+      delta_h_effective: delta_h_final,
+      repetition_count:  decay.repetition_count,
     };
 
     // ── Self-Consistency Check ───────────────
