@@ -290,7 +290,7 @@ if (!consistent) {
       transmission_id,
       status:      'BURN',
       jule:        0,
-      net:         -this.constants.POSTING_COST,
+      net:         calculateNet(finalJule),
       fingerprint,
       burn_reason: reason,
       energy_saved: 0,
