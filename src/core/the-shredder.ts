@@ -262,9 +262,15 @@ export class TheShredder {
     _history:        JuleAuditFingerprint[]
   ): AuditResult {
     const fingerprint: JuleAuditFingerprint = {
-      v_score:0, delta_h_prime:0, k_reality:0,
-      sigma_singularity:0, phi_inertia:1,
-    };
+  v_score:           0,
+  delta_h_prime:     0,
+  k_reality:         0,
+  sigma_singularity: 0,
+  phi_inertia:       1,
+  gamma_genre:       'OTHER',   // ★追加
+  delta_h_effective: 0,         // ★追加
+  repetition_count:  0,         // ★追加
+};
     const entry: AuditLogEntry = {
       transmission_id,
       raw_content_hash: content_hash,
