@@ -3,13 +3,45 @@
 // This is a fragment of Pandora Theory.
 // ─────────────────────────────────────────────
 
-// ── 5-Axis Information Fingerprint ───────────
+
+// ── Genre Axis (6th axis) ─────────────────────
+export type JuleGenre =
+  | 'PHYSICS'       // 物理・宇宙論
+  | 'MATH'          // 数学・証明
+  | 'AI_SAFETY'     // AI安全・倫理
+  | 'ECONOMICS'     // 経済・トークン設計
+  | 'CONSCIOUSNESS' // 意識・哲学
+  | 'ENGINEERING'   // 実装・コード
+  | 'CROSS'         // ジャンル横断（ボーナス）
+  | 'OTHER';        // 未分類
+
+// Genre repetition tracking
+export interface GenreRepetitionMap {
+  [userId: string]: {
+    [genre: string]: {
+      [fingerprintBucket: string]: number;
+    };
+  };
+}
+
+// Repetition decay result
+export interface DecayResult {
+  repetition_count: number;
+  decay_factor:     number;  // (1/2)^count
+  delta_h_effective: number; // ΔH' × decay_factor
+  is_echo_chamber:  boolean; // count >= 11
+}
+
+// ── 6-Axis Information Fingerprint ───────────
 export interface JuleAuditFingerprint {
-  v_score:           number; // 論理硬度         (0-100)
-  delta_h_prime:     number; // エネルギー拡張新規性 (0-1)
-  k_reality:         number; // 接地力           (0-1)
-  sigma_singularity: number; // 認知的特異性      (0-1)
-  phi_inertia:       number; // 位相慣性          (0-1)
+  v_score:           number;    // 論理硬度         (0-100)
+  delta_h_prime:     number;    // エネルギー拡張新規性 (0-1)
+  k_reality:         number;    // 接地力           (0-1)
+  sigma_singularity: number;    // 認知的特異性      (0-1)
+  phi_inertia:       number;    // 位相慣性          (0-1)
+  gamma_genre:       JuleGenre; // ジャンル軸 ★NEW (6th axis)
+  delta_h_effective: number;    // 減衰後ΔH' (decay applied)
+  repetition_count:  number;    // 同ジャンル×指紋の連投回数
 }
 
 // ── L2 Evaluation from AI engines ────────────
