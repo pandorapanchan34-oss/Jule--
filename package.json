@@ -1,6 +1,6 @@
 {
   "name": "jule-ai-energy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "dev": "ts-node src/index.ts",
