@@ -4,12 +4,12 @@ import { MockAspidosAIAdapter } from '../src/adapters/aspidos-ai.js';
 import type { L2Evaluation }    from '../src/types/index.js';
 
 const mockL2 = (v: number, tokens: number): L2Evaluation[] => [{
-  ai_id:       'claude',
-  v_score:     v,
-  delta_h_raw: 0.8,
-  burn_reason: null,
-  reason:      'test',
-  token_count: tokens,
+  ai_id:        'claude',
+  v_score:      v,
+  delta_h_raw:  0.8,
+  burn_reason:  null,
+  reason:       'test',
+  token_count:  tokens,
   useful_ratio: 0.8,
 }];
 
@@ -19,8 +19,8 @@ describe('TheShredder', () => {
   it('should calculate Jule value', async () => {
     const result = await shredder.executeAudit(
       'test content',
-      [],        // history
-      0.5,       // reputation
+      [],
+      0.5,
       mockL2(80, 200)
     );
     expect(result.jule).toBeGreaterThanOrEqual(0);
@@ -41,32 +41,6 @@ describe('TheShredder', () => {
     );
     expect(result.energy_saved).toBeGreaterThanOrEqual(0);
   });
-it('should apply decay on repeated genre', async () => {
-    const content = 'galaxy rotation curve analysis';
-    // 1回目
-    const r1 = await shredder.executeAudit(
-      content, [], 0.5, mockL2(80, 200)
-    );
-    // 2回目（同ジャンル・同指紋）
-    const r2 = await shredder.executeAudit(
-      content, [], 0.5, mockL2(80, 200)
-    );
-    // 減衰してるはず
-    expect(r2.jule).toBeLessThan(r1.jule);
-  });
-  it('should apply decay on repeated genre', async () => {
-    const content = 'galaxy rotation curve analysis';
-    const r1 = await shredder.executeAudit(
-      content, [], 0.5, mockL2(80, 200)
-    );
-    const r2 = await shredder.executeAudit(
-      content, [], 0.5, mockL2(80, 200)
-    );
-    expect(r2.jule).toBeLessThan(r1.jule);
-  });
-});it('energy_saved should be recorded', async () => {
-    ...
-  });
 
   it('should apply decay on repeated genre', async () => {
     const content = 'galaxy rotation curve analysis';
@@ -78,3 +52,5 @@ it('should apply decay on repeated genre', async () => {
     );
     expect(r2.jule).toBeLessThan(r1.jule);
   });
+
+});
