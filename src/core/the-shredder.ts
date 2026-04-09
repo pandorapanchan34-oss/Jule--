@@ -192,11 +192,10 @@ export class TheShredder {
 
     // ── Jule Calculation ─────────────────────
     const jule = calculateJule({
-      v,
-      delta_h:    delta_h_final,
-      reputation: userReputation,
-      k:          k_reality,
-    });
+  v, delta_h: delta_h_final,
+  reputation: userReputation,
+  k: k_reality, sigma, phi,
+});
 
     // ── Determine burn_reason from L2 ────────
     if (!burn_reason && l2Evaluations.length > 0) {
