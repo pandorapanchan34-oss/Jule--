@@ -1,47 +1,43 @@
-// src/fingerprint/delta-h-prime.ts
+// ─────────────────────────────────────────────
+// ΔH': Extended Entropy Reduction
+// ΔH' = ΔH × (useful_tokens / energy_consumed)
+// ─────────────────────────────────────────────
 import type { L2Evaluation } from '../types/index.js';
 
-/**
- * ΔH': Energy-Extended Entropy Reduction
- * ΔH' = ΔH × (useful_tokens / energy_consumed)
- *
- * 修正前: dH * (efficiency / energy) → tokens²が分母に入っていた
- * 修正後: dH * (usefulTokens / energy) → 仕様通り
- */
 export function calculateDeltaHPrime(
-  evals: L2Evaluation[],
-  sigma: number
+  evals:  L2Evaluation[],
+  sigma:  number
 ): number {
   if (evals.length === 0) return 0;
 
-  const values = evals.map(e => {
-    const useful  = e.token_count * e.useful_ratio;
-    const energy  = e.token_count;          // modelFactor=1をデフォルト
-    if (energy === 0) return 0;
+  const mean_dh = evals.reduce((a, e) => a + e.delta_h_raw, 0)
+                / evals.length;
 
-    const dH = e.delta_h_raw;
-    return dH * (useful / energy);          // = dH × useful_ratio
-  });
+  const h_redundancy = Math.max(0, 1 - sigma);
 
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  const mean_useful = evals.reduce((a, e) => a + e.useful_ratio, 0)
+                    / evals.length;
 
-  // sigmaで重み付け（AI間一致度が高いほど信頼性↑）
-  return avg * sigma;
+  const delta_h_prime = mean_dh * (1 - h_redundancy) * mean_useful;
+
+  return Math.min(1, Math.max(0, delta_h_prime));
 }
 
-/**
- * Energy Saved
- * 冗長トークンを省いた分の節約量（正規化）
- */
 export function calculateEnergySaved(
-  evals: L2Evaluation[]
+  evals:    L2Evaluation[],
+  baseline: number = 1.0
 ): number {
   if (evals.length === 0) return 0;
 
-  const saved = evals.map(e => {
-    const redundant = 1 - e.useful_ratio;
-    return e.token_count * redundant;
-  });
+  const mean_useful = evals.reduce((a, e) => a + e.useful_ratio, 0)
+                    / evals.length;
 
-  return saved.reduce((a, b) => a + b, 0) / evals.length;
+  return Math.max(0, mean_useful - baseline + 1);
+}
+
+export function exceedsThreshold(
+  delta_h_prime: number,
+  theta_sat:     number
+): boolean {
+  return delta_h_prime > theta_sat;
 }
