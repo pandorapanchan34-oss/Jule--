@@ -1,65 +1,65 @@
 /**
- * JuleMarket.ts
- * 知性の種（juleSeed）の流通・価値査定・生命周期を管理するコアマーケットレイヤー。
- * パンドラ理論 Ch.10 (n=3収束) に基づく資源配分プロトコル。
+ * JuleMarket v1.1 (Hardened)
+ * - Anti-Gaming Layer
+ * - Dynamic Pricing
+ * - Liquidity Support
  */
 
-import { juleSeed, Listing, SeedState, HydrateResult } from './types';
-import { shredder, treasury, reputationSystem, storage } from '../core-system'; 
-
 export class JuleMarket {
-  
-  /**
-   * 1. 出品 (listSeed)
-   * 種を市場に放流し、物理的な初期値を刻印する。
-   */
-  async listSeed(
-    seed: juleSeed,
-    priceInJule: number,
-    sellerId: string
-  ): Promise<Listing> {
-    
-    // ── 再監査：圧縮効率と情報の純度を再確認
+
+  async listSeed(seed: juleSeed, priceInJule: number, sellerId: string): Promise<Listing> {
+
     const audit = await shredder.executeAuditForSeed(seed);
     if (audit.status === 'BURN') {
-      throw new Error('Low-value seed: Informational density below threshold.');
+      throw new Error('Low-value seed.');
     }
 
-    // ── 所有権と独自性(Σ/Φ)の検証
+    // ── Ownership check
     if (seed.creatorId !== sellerId) {
-      throw new Error('Ownership mismatch: Integrity check failed.');
+      throw new Error('Ownership mismatch.');
     }
 
-    // ── 品質スコア計算：独自性が高く、類似度が低いほど高評価
-    // J = V * Σ * (1 - Φ)
+    // ── Anti-Gaming: 類似Seed出品制限（Φチェック）
+    const similar = await storage.findSimilarSeeds(seed.fingerprint, 0.92);
+    if (similar.length > 3) {
+      throw new Error('Market spam detected: Similar seeds overflow.');
+    }
+
+    // ── Quality Score
     const qualityScore =
       audit.jule *
       audit.fingerprint.sigma *
       (1 - audit.fingerprint.phi);
 
-    // ── ダンピング防止：最低価格の物理的拘束
-    const minPrice = qualityScore * 0.5;
+    // ── Dynamic floor price（市場連動）
+    const marketAvg = await storage.getMarketAverage();
+    const minPrice = Math.max(
+      qualityScore * 0.5,
+      marketAvg * 0.3
+    );
+
     if (priceInJule < minPrice) {
-      throw new Error(`Price violation: Minimum required is ${minPrice.toFixed(2)} Jule.`);
+      throw new Error(`Price too low. Min: ${minPrice.toFixed(2)}`);
     }
 
     const listing: Listing = {
-      listingId: `L-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      listingId: generateId(),
       seed,
       sellerId,
       price: priceInJule,
+      status: "ACTIVE",
       state: {
         baseValue: audit.jule,
         createdAt: Date.now(),
         usageCount: 0,
         entropyLeak: 0,
-        evolutionFactor: seed.evolution_factor || 1.0 // 生成時に刻印された進化係数
+        evolutionFactor: seed.evolution_factor || 1.0
       },
-      status: "ACTIVE",
       metadata: {
         qualityScore,
-        deltaH: audit.fingerprint.deltaHPrime,
-        sigma: audit.fingerprint.sigma
+        sigma: audit.fingerprint.sigma,
+        phi: audit.fingerprint.phi,
+        deltaH: audit.fingerprint.deltaHPrime
       }
     };
 
@@ -67,88 +67,107 @@ export class JuleMarket {
     return listing;
   }
 
-  /**
-   * 2. 購入 (buy)
-   * 知性の権利を移譲し、エコシステムへの貢献度を分配する。
-   */
   async buy(listingId: string, buyerId: string) {
+
     const listing = await storage.getListing(listingId);
-
     if (!listing || listing.status !== "ACTIVE") {
-      throw new Error('Listing unavailable or already archived.');
+      throw new Error('Unavailable.');
     }
 
-    // ── 実効価値の計算（劣化と進化の競合）
+    // ── Anti-Self Trade
+    if (listing.sellerId === buyerId) {
+      throw new Error('Self-trading prohibited.');
+    }
+
+    // ── Sybil Attack対策（Φベース）
+    const similarity = await storage.checkUserSimilarity(
+      listing.sellerId,
+      buyerId
+    );
+    if (similarity > 0.9) {
+      throw new Error('Sybil attack detected.');
+    }
+
     const effectiveValue = this.computeEffectiveValue(listing);
-    
-    // 価格が実効価値を大幅に上回る（ボッタクリ）の防止
+
     if (effectiveValue < listing.price * 0.4) {
-      throw new Error('Market Warning: Seed degradation exceeds price value.');
+      throw new Error('Overpriced degraded seed.');
     }
 
-    // ── 決済プロセス
-    const fee = listing.price * 0.05; // 5% プロトコル維持費（焼却または国庫へ）
-    await treasury.transfer(buyerId, listing.sellerId, listing.price - fee);
-    await treasury.transfer(buyerId, "PROT_TREASURY", fee);
+    // ── Dynamic Fee（ネットワーク負荷依存）
+    const networkLoad = await storage.getNetworkLoad();
+    const feeRate = 0.03 + (networkLoad * 0.07); // 3%〜10%
 
-    // ── hydrate権限の付与（n=3にちなみ、基本3回使用で減衰加速）
+    const fee = listing.price * feeRate;
+
+    await treasury.transfer(buyerId, listing.sellerId, listing.price - fee);
+    await treasury.transfer(buyerId, "TREASURY", fee);
+
+    // ── Hydrate権限（動的）
+    const maxUses = Math.max(1, Math.floor(3 * listing.state.evolutionFactor));
+
     await storage.grantHydratePermission(buyerId, listing.seed, {
-      maxUses: 3,
-      initialDecay: 0.7
+      maxUses,
+      decay: 0.7
     });
 
-    // ── レピュテーションの双方向重力更新
-    await reputationSystem.update(listing.sellerId, 0.01); 
-    await reputationSystem.update(buyerId, 0.002); // 優れた観測者への報酬
+    // ── Reputation update（非対称強化）
+    await reputationSystem.update(listing.sellerId, 0.01);
+    await reputationSystem.update(buyerId, 0.003);
 
-    // 共有物として維持する場合は利用回数を加算、1点物ならSOLDへ
-    listing.state.usageCount += 1;
-    if (listing.state.usageCount >= 10) listing.status = "SOLD"; 
+    listing.state.usageCount++;
+
+    // ── 自動アーカイブ条件
+    if (listing.state.usageCount > 12 || effectiveValue < 5) {
+      listing.status = "ARCHIVED";
+    }
 
     await storage.saveListing(listing);
-    
-    return { success: true, seed: listing.seed, effectiveValue };
+
+    return { success: true, effectiveValue };
   }
 
-  /**
-   * 3. 物理的価値計算 (computeEffectiveValue)
-   * 鮮度、稀少性、進化抵抗力を統合した動的な価格算定。
-   */
   private computeEffectiveValue(listing: Listing): number {
+
     const { baseValue, createdAt, usageCount, entropyLeak, evolutionFactor } = listing.state;
-    
-    const ageInHours = (Date.now() - createdAt) / (1000 * 60 * 60);
-    
-    // 進化係数が高いほど、時間の経過による劣化（Decay）に耐える
-    // 抵抗値 = ln(1 + EvolutionFactor)
+
+    const age = (Date.now() - createdAt) / (1000 * 60 * 60);
+
+    // ── 進化耐性
     const resistance = Math.log1p(evolutionFactor);
-    const decayConst = 72 * (1 + resistance); 
-    const freshness = Math.exp(-ageInHours / decayConst);
-    
-    // 稀少性：利用されるほど「当たり前」になり価値が下がる
-    const scarcity = 1 / (1 + usageCount * 0.2);
-    
-    // エントロピー・ペナルティ：質の低い展開（hydrate）をされると漏洩が増える
+
+    const decayConst = 72 * (1 + resistance);
+    const freshness = Math.exp(-age / decayConst);
+
+    // ── 希少性
+    const scarcity = 1 / (1 + usageCount * 0.25);
+
+    // ── 情報純度
     const integrity = Math.exp(-entropyLeak);
 
-    return baseValue * freshness * scarcity * integrity;
+    // ── 市場ブースト（人気補正）
+    const demandBoost = Math.log1p(usageCount);
+
+    return baseValue * freshness * scarcity * integrity * (1 + demandBoost * 0.1);
   }
 
-  /**
-   * 4. 状態のフィードバック更新
-   * hydrate（展開）の結果を受けて、種の寿命を調整する。
-   */
   async updateAfterHydrate(listingId: string, auditResult: any) {
+
     const listing = await storage.getListing(listingId);
     if (!listing) return;
 
-    // ΔH' が低い（質の低い展開）ほど、entropyLeakが増大し寿命が縮まる
-    const leakSeverity = Math.max(0, 0.3 - auditResult.deltaHPrime);
-    listing.state.entropyLeak += leakSeverity;
+    // ── Entropy Leak（劣化）
+    const leak = Math.max(0, 0.3 - auditResult.deltaHPrime);
+    listing.state.entropyLeak += leak;
 
-    // 逆に非常に高い価値(V)を示した場合、進化係数が微増する（成長）
+    // ── Evolution（成長）
     if (auditResult.jule > 80) {
-      listing.state.evolutionFactor *= 1.05;
+      listing.state.evolutionFactor *= 1.08;
+    }
+
+    // ── 崩壊条件（低品質連鎖）
+    if (listing.state.entropyLeak > 2.5) {
+      listing.status = "DECAYED";
     }
 
     await storage.saveListing(listing);
