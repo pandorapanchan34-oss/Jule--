@@ -40,3 +40,17 @@ export type {
   HydrateResult,
   // ...既存の型
 } from './types/index.js';
+// ── Market Layer ─────────────────────────────────────────────
+// The economic engine for truth seeds.
+export { JuleMarket }          from './market/JuleMarket.js';
+
+// ── Common Types ─────────────────────────────────────────────
+// Re-exporting core types for seamless integration.
+export type {
+  juleSeed,
+  Listing,
+  SeedState,
+  HydrateResult,
+  GenreRepetitionMap,
+  JuleGenre,
+} from './types/index.js';
