@@ -1,27 +1,14 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  // 1. 基本となるインポートの定義
-  // ReferenceError: defineConfig is not defined を防ぐための根幹です。
+  root: 'demo', // ここを追加！index.htmlがあるディレクトリを指定します
   
   build: {
-    outDir: 'dist',
-    sourcemap: true, // デバッグとゆらぎの観測に役立ちます
-    minify: 'terser', // 出力を最適化
+    outDir: '../dist', // 出力先をdemoの外（ルート）に戻すために ../ をつけます
+    emptyOutDir: true,
+    sourcemap: true,
+    minify: 'terser',
   },
-
-  resolve: {
-    alias: {
-      // 必要に応じてパスエイリアスを設定してください
-      '@': resolve(__dirname, './src'),
-    },
-  },
-
-  // サーバー設定（ローカル開発用）
-  server: {
-    port: 3000,
-    strictPort: true,
-  }
+  // ...残りの設定
 });
