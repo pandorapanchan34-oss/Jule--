@@ -4,9 +4,9 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  root: 'demo',                    // ← これ大事！ demoフォルダをルートにする
+  root: 'demo',                    
   build: {
-    outDir: '../dist-demo',        // ← GitHub Pages用に出力先を明確に
+    outDir: '../dist-demo',        
     emptyOutDir: true,
   },
   server: {
