@@ -7,7 +7,7 @@
   "build": "tsc",
   "test": "vitest",
   "demo": "vite --open",
-  "build:demo": "vite build",        // これでOK（vite.config.tsでroot指定してる）
+  "build:demo": "vite build",        
   "preview:demo": "vite preview"
 }
   "dependencies": {
