@@ -2,7 +2,9 @@
 // ΔH': Extended Entropy Reduction
 // ΔH' = ΔH × (useful_tokens / energy_consumed)
 // ─────────────────────────────────────────────
-import type { L2Evaluation } from '../types/index.js';
+
+// .js 拡張子を削除（ビルド環境のパス解決エラーを回避）
+import type { L2Evaluation } from '../types/index';
 
 export function calculateDeltaHPrime(
   evals:  L2Evaluation[],
