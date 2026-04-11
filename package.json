@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev":        "vite demo",
-    "build":      "vite build",
+    "build": "vite build demo --outDir ../dist",
     "build:demo": "vite build",
     "preview":    "vite preview",
     "build:lib":  "tsc"
