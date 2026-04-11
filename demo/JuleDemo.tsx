@@ -152,19 +152,33 @@ export default function JuleDemo() {
   };
 
   const mintSeed = () => {
-    if (!result||result.status!=="ISSUED") { addSeedLog("ISSUEDのみMINT可能",C.red); return; }
-    const seed={
-      id:"S-"+Math.random().toString(36).slice(2,8).toUpperCase(),
-      anchor:"Pandora_Ch10_n3", fingerprint:"6axis:"+result.fp.timestamp,
-      logic_hash:"sha256:"+btoa(text.slice(0,100)),
-      entropy_pool:btoa(text+Date.now()).slice(0,64),
-      originalTokens:Math.floor(text.length*2.8), compressedTokens:Math.floor(text.length*0.38),
-      compressionRatio:0.62, qualityScore:result.jule, genre:result.genre,
-      metadata:{topic:result.genre,createdAt:new Date().toISOString()},
+  if (!result || result.status !== "ISSUED") {
+    addSeedLog("ISSUEDのみMINT可能", C.red);
+    return;
+  }
+  try {
+    const seed = {
+      id: "S-" + Math.random().toString(36).slice(2,8).toUpperCase(),
+      anchor: "Pandora_Ch10_n3",
+      fingerprint: "6axis:" + (result.fp?.timestamp || Date.now()),
+      logic_hash: "sha256:" + btoa(encodeURIComponent(text.slice(0,50))),
+      entropy_pool: btoa(encodeURIComponent(text.slice(0,30) + Date.now())).slice(0,64),
+      originalTokens: Math.floor(text.length * 2.8),
+      compressedTokens: Math.floor(text.length * 0.38),
+      compressionRatio: 0.62,
+      qualityScore: result.jule,
+      genre: result.genre || "OTHER",
+      metadata: { topic: result.genre || "OTHER", createdAt: new Date().toISOString() },
     };
-    setMySeeds(prev=>[...prev,seed]); setResult(null); setText(""); setTimeout(()=>setTab("market"),50);
-    addSeedLog(`MINT → ${seed.id}`,C.accent);
-  };
+    setMySeeds(prev => [...prev, seed]);
+    setResult(null);
+    setText("");
+    setTimeout(() => setTab("market"), 50);
+    addSeedLog(`MINT → ${seed.id}`, C.accent);
+  } catch(e) {
+    addSeedLog("MINT失敗: " + e.message, C.red);
+  }
+};
 
   const listSeed = (seed) => {
     const price=Math.max(20,Math.floor(seed.qualityScore*seed.compressionRatio*0.8));
