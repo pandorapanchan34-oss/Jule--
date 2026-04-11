@@ -64,3 +64,13 @@ export type {
   GenreRepetitionMap,
   JuleGenre,
 } from './types/index.js';
+
+export { 
+  buildFingerprint6,
+  calculatePhi,
+  calculateSigma,
+  detectGenre,
+  calculateDeltaHPrime,
+  applyDecay,
+} from './fingerprint/fingerprint6.js';
+export type { JuleFingerprint6 } from './fingerprint/fingerprint6.js';
