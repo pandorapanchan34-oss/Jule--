@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   root: 'demo',
 build: {
-  outDir: 'dist',  // dist-demo → dist に変更
+  outDir: 'dist', 
   emptyOutDir: true,
 },
   base: '/jule-ai-energy/',
