@@ -1,17 +1,11 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  root: 'demo', // ビルドの起点はdemoフォルダ
   plugins: [react()],
-  base: '/jule-ai-energy/',
+  root: '.',
   build: {
-    outDir: '../dist',
-    emptyOutDir: true,
-    minify: 'terser',
-    rollupOptions: {
-      // demo/index.html を起点にする
-      input: 'index.html' 
-    }
-  }
-})
+    outDir: 'dist-demo',
+  },
+  base: '/jule-ai-energy/',
+});
