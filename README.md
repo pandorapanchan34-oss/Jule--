@@ -53,34 +53,14 @@ const fp = buildFingerprint6({
 //   delta_h_effective: 0.68,   // after decay + genre bonus
 //   repetition_count:  0,
 // }
-Axis
-Symbol
-Role
-Fingerprint Shape
-Intelligence
-V
-Logical hardness
-Skeleton
-Convergence
-Σ
-AI evaluation agreement
-Pattern
-Inertia
-Φ
-Duplicate detection
-History
-Information
-ΔH'
-Distance from known space
-Distance
-Genre
-γ
-Topic classification
-Color
-Effective
-ΔH_eff
-After decay + bonus
-Weight
+| Axis | Symbol | Role | Shape |
+|------|--------|------|-------|
+| Intelligence | `V` | Logical hardness | Skeleton |
+| Convergence | `Σ` | AI evaluation agreement | Pattern |
+| Inertia | `Φ` | Duplicate detection | History |
+| Information | `ΔH'` | Distance from known space | Distance |
+| Genre | `γ` | Topic classification | Color |
+| Effective | `ΔH_eff` | After decay + bonus | Weight |
 ---
 
 | You Want to... | Take This Action | The Outcome |
