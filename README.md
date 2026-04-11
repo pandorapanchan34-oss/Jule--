@@ -27,6 +27,61 @@ The result: AI systems operating under Jule incentives naturally converge toward
 ---
 
 ## ⚡ Quick Guide: The Jule Loop
+## 6-Axis Fingerprint API
+
+Every Jule audit produces a `JuleFingerprint6` — a 6-dimensional identity for cognitive output.
+
+```typescript
+import { buildFingerprint6 } from 'jule-ai-energy';
+
+const fp = buildFingerprint6({
+  text: 'your input here',
+  v: 85,                    // AI evaluation score (0-100)
+  usefulRatio: 0.8,         // useful_tokens / total_tokens
+  k: 1.0,                   // category coefficient
+  historyHashes: [],        // past submission hashes (anti-gaming)
+  repetition: 0,            // same-genre repetition count
+});
+
+// fp: JuleFingerprint6
+// {
+//   v_score:           85,
+//   sigma_singularity: 0.94,   // AI convergence
+//   phi_inertia:       0.00,   // duplicate detection
+//   delta_h_prime:     0.68,   // information value
+//   gamma_genre:       "PHYSICS",
+//   delta_h_effective: 0.68,   // after decay + genre bonus
+//   repetition_count:  0,
+// }
+Axis
+Symbol
+Role
+Fingerprint Shape
+Intelligence
+V
+Logical hardness
+Skeleton
+Convergence
+Σ
+AI evaluation agreement
+Pattern
+Inertia
+Φ
+Duplicate detection
+History
+Information
+ΔH'
+Distance from known space
+Distance
+Genre
+γ
+Topic classification
+Color
+Effective
+ΔH_eff
+After decay + bonus
+Weight
+---
 
 | You Want to... | Take This Action | The Outcome |
 |:--- |:--- |:--- |
