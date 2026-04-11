@@ -4,12 +4,11 @@
   "version": "2.0.3",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:demo": "vite build",
-    "preview": "vite preview",
-    "build:lib": "tsc"
-  },
+  "dev": "vite demo",
+  "build": "vite build demo",
+  "preview": "vite preview demo",
+  "build:lib": "tsc"
+}
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
