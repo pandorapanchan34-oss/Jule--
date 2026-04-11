@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   // ビルドの起点を demo フォルダに設定
-  root: 'demo',
+  root: 'bist-demo',
   plugins: [react()],
   base: '/jule-ai-energy/',
   build: {
