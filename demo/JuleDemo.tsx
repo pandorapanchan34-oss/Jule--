@@ -162,7 +162,7 @@ export default function JuleDemo() {
       compressionRatio:0.62, qualityScore:result.jule, genre:result.genre,
       metadata:{topic:result.genre,createdAt:new Date().toISOString()},
     };
-    setMySeeds(prev=>[...prev,seed]); setResult(null); setText(""); setTab("market");
+    setMySeeds(prev=>[...prev,seed]); setResult(null); setText(""); setTimeout(()=>setTab("market"),50);
     addSeedLog(`MINT → ${seed.id}`,C.accent);
   };
 
