@@ -321,22 +321,3 @@ export default function JuleDemo() {
     </div>
   );
 }
-useEffect(()=>{
-  const p = new URLSearchParams(window.location.search);
-  const seedParam = p.get("seed");
-
-  if (seedParam) {
-    const decoded = decode(seedParam);
-    if (decoded) {
-      setMarket(prev => [
-        ...prev,
-        {
-          id: "EXT-" + Date.now(),
-          seed: decoded,
-          price: Math.max(20, Math.floor(decoded.qualityScore || 50))
-        }
-      ]);
-      addSeedLog("EXTERNAL SEED LISTED", C.gold);
-    }
-  }
-}, []);
