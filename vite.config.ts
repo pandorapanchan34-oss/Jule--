@@ -10,5 +10,5 @@ export default defineConfig({
     outDir: isGHPages ? '../dist-demo' : '../dist',
     emptyOutDir: true,
   },
-  base: isGHPages ? '/jule-ai-energy/' : '/',
+  base: isGHPages ? '/.//' : '/',
 });
