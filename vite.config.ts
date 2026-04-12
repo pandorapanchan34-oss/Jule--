@@ -1,4 +1,4 @@
-Import { defineConfig } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const isGHPages = process.env.GITHUB_PAGES === 'true';
@@ -10,5 +10,5 @@ export default defineConfig({
     outDir: isGHPages ? '../dist-demo' : '../dist',
     emptyOutDir: true,
   },
-  base: process.env.VERCEL ? '/' : './',
+  base: isGHPages ? '/jule-ai-energy/' : '/',
 });
