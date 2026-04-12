@@ -1,4 +1,4 @@
-Import { defineConfig } from 'vite';
+Import { defineConfig } from 'vit';
 import react from '@vitejs/plugin-react';
 
 const isGHPages = process.env.GITHUB_PAGES === 'true';
