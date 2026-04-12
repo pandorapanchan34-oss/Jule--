@@ -1,11 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const isGHPages = process.env.GITHUB_PAGES === 'true';
+
 export default defineConfig({
   plugins: [react()],
+  root: 'demo',
   build: {
-    outDir: 'dist',
+    outDir: isGHPages ? '../dist-demo' : '../dist',
     emptyOutDir: true,
   },
-  base: '/',
+  base: isGHPages ? '/jule-ai-energy/' : '/',
 });
