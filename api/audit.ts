@@ -1,4 +1,4 @@
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: 'node' };
 
 const POSTING_COST = 10;
 
