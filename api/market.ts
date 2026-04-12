@@ -1,4 +1,4 @@
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: 'node' };
 
 import { Redis } from '@upstash/redis';
 
