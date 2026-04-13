@@ -514,46 +514,55 @@ export default function JuleDemo() {
               </div>
 
               {/* MARKET */}
-              <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.15em", marginBottom: 8 }}>MARKET</div>
+<div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+  <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.15em", marginBottom: 8 }}>MARKET</div>
 
-                {/* ✅ ローディング・エラー・空の3状態を明示 */}
-                {marketLoading && (
-                  <div style={{ color: C.muted, fontSize: 11, textAlign: "center", padding: "20px 0" }}>
-                    読み込み中...
-                  </div>
-                )}
-                {!marketLoading && marketError && (
-                  <div style={{ color: C.red, fontSize: 10, textAlign: "center", padding: "20px 0" }}>
-                    ⚠ {marketError}<br />
-                    <span style={{ color: C.muted }}>APIに接続できませんでした</span>
-                  </div>
-                )}
-                {!marketLoading && !marketError && market.length === 0 && (
-                  <div style={{ color: C.muted, fontSize: 11, textAlign: "center", padding: "20px 0" }}>出品なし</div>
-                )}
-                {!marketLoading && market.map(l => {
-                  // ✅ seed が undefined でもクラッシュしない
-                  if (!l || !l.seed) return null;
-                  return (
-                    <div key={l.id} style={{ border: `1px solid ${C.accent}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ color: C.accent, fontSize: 11, fontWeight: 700 }}>{l.seed.id}</span>
-                        <span style={{ color: C.gold, fontSize: 13, fontWeight: 900 }}>{l.price} JULE</span>
-                      </div>
-                      <div style={{ fontSize: 9, color: C.muted, marginBottom: 8 }}>
-                        {l.seed.genre || l.seed.metadata?.topic || "OTHER"} | 品質: {(l.seed.qualityScore ?? 0).toFixed(1)}
-                      </div>
-                      <button onClick={() => buy(l)} style={{
-                        width: "100%", padding: "6px", fontSize: 10,
-                        background: "#001820", border: `1px solid ${C.accent}`,
-                        borderRadius: 4, color: C.accent, cursor: "pointer",
-                        fontFamily: "monospace", fontWeight: 700,
-                      }}>BUY ({l.price} JULE)</button>
-                    </div>
-                  );
-                })}
-              </div>
+  {marketLoading && <div style={{ color: C.muted, textAlign: "center", padding: "40px 0" }}>読み込み中...</div>}
+
+  {!marketLoading && marketError && (
+    <div style={{ color: C.red, textAlign: "center", padding: "30px 0" }}>
+      ⚠ {marketError}
+    </div>
+  )}
+
+  {!marketLoading && !marketError && market.length === 0 && (
+    <div style={{ color: C.muted, textAlign: "center", padding: "40px 0" }}>現在出品はありません</div>
+  )}
+
+  {!marketLoading && market.map((l, index) => {
+    const seed = l?.seed;
+    if (!l || !seed || !seed.id) {
+      return (
+        <div key={`invalid-${index}`} style={{ color: "#ff6b6b", padding: 12, background: "#1a0a0a", borderRadius: 6, marginBottom: 8 }}>
+          ⚠ Invalid listing data
+        </div>
+      );
+    }
+
+    return (
+      <div key={l.id || `listing-${index}`} style={{ border: `1px solid ${C.accent}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <span style={{ color: C.accent, fontSize: 11, fontWeight: 700 }}>{seed.id}</span>
+          <span style={{ color: C.gold, fontSize: 13, fontWeight: 900 }}>{l.price || 0} JULE</span>
+        </div>
+        <div style={{ fontSize: 9, color: C.muted, marginBottom: 8 }}>
+          {seed.genre || "OTHER"} | 品質: {Number(seed.qualityScore ?? 0).toFixed(1)}
+        </div>
+        <button 
+          onClick={() => buy(l)} 
+          style={{
+            width: "100%", padding: "6px", fontSize: 10,
+            background: "#001820", border: `1px solid ${C.accent}`,
+            borderRadius: 4, color: C.accent, cursor: "pointer",
+            fontFamily: "monospace", fontWeight: 700,
+          }}
+        >
+          BUY ({l.price || 0} JULE)
+        </button>
+      </div>
+    );
+  })}
+</div>
 
               <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.15em", marginBottom: 4 }}>LOG</div>
               <TermLog lines={seedLog} />
