@@ -193,13 +193,22 @@ export default function JuleDemo() {
   } catch(e: any) { addSeedLog("出品失敗: " + e.message, C.red); }
 };
 
-  const buy = (listing) => {
-    if (juleBalance<listing.price) { addSeedLog("JULE不足",C.red); return; }
-    setJB(prev=>prev-listing.price);
-    setMySeeds(prev=>[...prev,listing.seed]);
+  const buy = async (listing: any) => {
+  if (juleBalance < listing.price) { addSeedLog("JULE不足", C.red); return; }
+  try {
+    const userId = getUserId();
+    const res = await fetch("/api/buy", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId, listingId: listing.id })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || "購入失敗");
+    setJB(data.balance);
+    setMySeeds(prev=>[...prev, listing.seed]);
     setMarket(prev=>prev.filter(l=>l.id!==listing.id));
-    addSeedLog(`購入 → ${listing.seed.id}`,C.green);
-  };
+    addSeedLog(`購入 → ${listing.seed.id}`, C.green);
+  } catch(e: any) { addSeedLog("購入失敗: " + e.message, C.red); }
+};
 
   const shareSeed = (seed) => {
     const url=`${window.location.origin}${window.location.pathname}?seed=${encode(seed)}`;
