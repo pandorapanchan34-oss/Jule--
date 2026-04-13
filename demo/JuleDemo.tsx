@@ -177,12 +177,21 @@ export default function JuleDemo() {
   } catch(e: any) { addSeedLog("MINT失敗: " + e.message, C.red); }
 };
 
-  const listSeed = (seed) => {
-    const price=Math.max(20,Math.floor(seed.qualityScore*seed.compressionRatio*0.8));
-    setMarket(prev=>[...prev,{id:"L-"+Date.now(),seed,price}]);
+  const listSeed = async (seed: any) => {
+  const price = Math.max(20, Math.floor(seed.qualityScore * seed.compressionRatio * 0.8));
+  try {
+    const userId = getUserId();
+    const res = await fetch("/api/market", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ userId, seedId: seed.id, price })
+    });
+    const data = await res.json();
+    if (!data.listingId) throw new Error(data.error || "出品失敗");
     setMySeeds(prev=>prev.filter(s=>s.id!==seed.id));
-    addSeedLog(`出品 → ${seed.id} (${price} JULE)`,C.gold);
-  };
+    setMarket(prev=>[...prev,{id:data.listingId, seed, price}]);
+    addSeedLog(`出品 → ${seed.id} (${price} JULE)`, C.gold);
+  } catch(e: any) { addSeedLog("出品失敗: " + e.message, C.red); }
+};
 
   const buy = (listing) => {
     if (juleBalance<listing.price) { addSeedLog("JULE不足",C.red); return; }
