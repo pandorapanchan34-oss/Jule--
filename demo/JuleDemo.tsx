@@ -239,6 +239,7 @@ export default function JuleDemo() {
 };
 
   return (
+  <ErrorBoundary>
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'Courier New',monospace",padding:"16px",backgroundImage:"radial-gradient(ellipse at 20% 20%,#0a1628 0%,transparent 60%)"}}>
       <div style={{textAlign:"center",marginBottom:18}}>
         <div style={{fontSize:9,color:"#2a4060",letterSpacing:"0.3em",marginBottom:4}}>PANDORA ECONOMY PROTOCOL v0.2</div>
