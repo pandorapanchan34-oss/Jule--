@@ -15,7 +15,16 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     const ids = await redis.lrange('jule:market:listings', 0, 49) as string[];
     if (!ids.length) return res.status(200).json({ listings: [] });
-    const listings = await Promise.all(ids.map(id => redis.hgetall(`jule:listing:${id}`)));
+    const listings = await Promise.all(
+      ids.map(async id => {
+        const l = await redis.hgetall(`jule:listing:${id}`) as any;
+        if (!l) return null;
+        if (typeof l.seed === "string") {
+          try { l.seed = JSON.parse(l.seed); } catch {}
+        }
+        return l;
+      })
+    );
     return res.status(200).json({ listings: listings.filter(Boolean) });
   }
 
