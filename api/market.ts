@@ -36,7 +36,13 @@ export default async function handler(req: any, res: any) {
     if (!seed) return res.status(404).json({ error: 'Seed not found' });
 
     const listingId = 'L-' + Date.now();
-    await redis.hset(`jule:listing:${listingId}`, { id:listingId, seedId, seed, price, seller:userId });
+    await redis.hset(`jule:listing:${listingId}`, {
+  id: listingId,
+  seedId,
+  seed: JSON.stringify(seed),  // ← 文字列化して保存
+  price,
+  seller: userId
+});
     await redis.lpush('jule:market:listings', listingId);
     await redis.lrem(`jule:user:${userId}:seeds`, 0, seedId);
 
