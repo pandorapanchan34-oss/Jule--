@@ -182,7 +182,7 @@ export default function JuleDemo() {
   const [repetition, setRep2]   = useState(0);
   const [result, setResult]     = useState<any>(null);
   const [log, setLog]           = useState<any[]>([]);
-  const [history, setHistory]   = useState<string[]>([]);
+  const [history, setHistory]   = useState<any[]>([]); // JuleAuditFingerprint[]
   const [pulse, setPulse]       = useState(false);
   const [ranking, setRanking]   = useState<any[]>([]);
   const [mySeeds, setMySeeds]   = useState<any[]>([]);
@@ -249,7 +249,7 @@ export default function JuleDemo() {
       const res = await fetch(`${API}/api/audit`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, v, usefulRatio, reputation, category, repetition, history }),
+        body: JSON.stringify({ text, v, usefulRatio, reputation, category, repetition, historyFingerprints: history }),
       });
 
       if (!res.ok) {
@@ -293,10 +293,18 @@ export default function JuleDemo() {
         genre:  fp?.genre,
       });
 
-      // 履歴更新（Φ計算用ハッシュをAPIに渡すため保持）
-      const contentHash = text.trim().split(/\s+/).slice(0, 5).join("_");
-      if (data.status === "ISSUED") {
-        setHistory(h => [...h.slice(-9), contentHash]);
+      // ISSOEDのときだけhistoryにfingerprintを積む（Φ計算用）
+      if (data.status === "ISSUED" && normalizedFp) {
+        const historyEntry = {
+          v_score:           normalizedFp.v,
+          sigma_singularity: normalizedFp.sigma,
+          phi_inertia:       normalizedFp.phi,
+          delta_h_prime:     normalizedFp.deltaHPrime,
+          gamma_genre:       normalizedFp.genre,
+          delta_h_effective: normalizedFp.deltaHPrime,
+          repetition_count:  repetition,
+        };
+        setHistory(h => [...h.slice(-9), historyEntry]);
       }
       saveScore({ text: text.slice(0, 40), net: data.net });
       setRanking(getRanking());
