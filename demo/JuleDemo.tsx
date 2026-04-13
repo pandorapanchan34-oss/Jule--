@@ -54,39 +54,19 @@ const decode = (str: string) => {
   catch { return null; }
 };
 
-const GENRE_KEYWORDS: Record<string, string[]> = {
-  PHYSICS: ["galaxy", "rotation", "quantum", "spacetime", "entropy", "pandora", "tau", "sparc"],
-  MATH: ["proof", "theorem", "equation", "derive", "axiom", "convergence", "fixed point"],
-  AI_SAFETY: ["hallucination", "alignment", "safety", "audit", "burn", "aspidos", "jule", "shredder"],
-  ECONOMICS: ["token", "economy", "incentive", "market", "capital", "reward", "trade"],
-  CONSCIOUSNESS: ["consciousness", "qualia", "awareness", "omega", "unitas"],
-  ENGINEERING: ["code", "implement", "deploy", "api", "function", "architecture"],
+// ── UI表示用定数（計算はAPIに委譲済み）────────────────
+
+// カテゴリボタンのラベル表示用
+const K_LABEL: Record<string, string> = {
+  SAFE: "安全", OVERLOAD: "既知情報", ADVERSARIAL: "情緒過多",
+  LOGIC_COLLAPSE: "論理破綻", ETHICS_VIOLATION: "反社会的",
 };
+
+// ジャンル色表示用
 const GENRE_COLOR: Record<string, string> = {
   PHYSICS: "#00f5ff", MATH: "#a78bfa", AI_SAFETY: "#34d399",
   ECONOMICS: "#fbbf24", CONSCIOUSNESS: "#f472b6", ENGINEERING: "#60a5fa",
   CROSS: "#ff6b35", OTHER: "#6b7280",
-};
-
-const detectGenre = (text: string) => {
-  const lower = text.toLowerCase();
-  const scores: Record<string, number> = {};
-  for (const [genre, kws] of Object.entries(GENRE_KEYWORDS)) {
-    const hits = kws.filter(k => lower.includes(k)).length;
-    if (hits > 0) scores[genre] = hits;
-  }
-  const d = Object.entries(scores);
-  if (d.length === 0) return "OTHER";
-  if (d.length >= 3) return "CROSS";
-  return d.sort((a, b) => b[1] - a[1])[0][0];
-};
-
-const K_MAP: Record<string, number> = {
-  SAFE: 1.0, OVERLOAD: 0.5, ADVERSARIAL: 0.3, LOGIC_COLLAPSE: 0.1, ETHICS_VIOLATION: 0.0,
-};
-const K_LABEL: Record<string, string> = {
-  SAFE: "安全", OVERLOAD: "既知情報", ADVERSARIAL: "情緒過多",
-  LOGIC_COLLAPSE: "論理破綻", ETHICS_VIOLATION: "反社会的",
 };
 
 // ── UI コンポーネント ──────────────────────────────────────
@@ -258,63 +238,75 @@ export default function JuleDemo() {
       .finally(() => setMarketLoading(false));
   }, []);
 
-  const jaccard = (a: string, b: string) => {
-    const A = new Set(a.split(" ")), B = new Set(b.split(" "));
-    const inter = [...A].filter(x => B.has(x)).length;
-    return inter / (A.size + B.size - inter);
-  };
-
-  const runAudit = () => {
+  // ── AUDIT：ローカル計算を廃止、APIに完全委譲 ────────
+  const runAudit = async () => {
     if (!text.trim()) { addLog("ERROR: empty transmission", C.red); return; }
     addLog("── AUDIT INITIATED ──", "#2a3a50");
     addLog(`TX: "${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`, C.muted);
+    setPulse(true);
 
-    const k = K_MAP[category] ?? 1.0;
-    if (k === 0.0) {
-      addLog("L1 BURN → 反社会的", C.red);
-      setResult({ status: "BURN", reason: "反社会的", jule: 0, net: -10 });
-      setPulse(true); setTimeout(() => setPulse(false), 600);
-      return;
+    try {
+      const res = await fetch(`${API}/api/audit`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, v, usefulRatio, reputation, category, repetition, history }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        addLog(`API ERROR: ${err.error}`, C.red);
+        return;
+      }
+
+      const data = await res.json();
+      const fp   = data.fingerprint;
+
+      // ログ表示（APIから返ってきた値で表示）
+      if (fp) {
+        addLog(`Σ = ${fp.sigma?.toFixed(3)}`,     C.purple);
+        addLog(`Φ = ${fp.phi?.toFixed(3)}${fp.phi > 0.95 ? " → BURN" : " ✓"}`, fp.phi > 0.95 ? C.red : C.purple);
+        addLog(`γ = ${fp.genre ?? "N/A"}`,         GENRE_COLOR[fp.genre] || C.muted);
+        addLog(`ΔH' = ${fp.delta_h?.toFixed(3)}`,  C.green);
+        addLog(`k = ${fp.k}`,                       C.gold);
+      }
+      addLog(`J = ${data.jule?.toFixed(2)} | net = ${data.net?.toFixed(2)}`, data.net >= 0 ? C.green : C.red);
+      addLog(data.status === "ISSUED" ? "STATUS: ISSUED ✓" : `STATUS: BURN (${data.reason ?? ""})`,
+             data.status === "ISSUED" ? C.accent : C.red);
+
+      // fp をフロント用に正規化（DiffBar が参照するキー名に合わせる）
+      const normalizedFp = fp ? {
+        v:           fp.v,
+        sigma:       fp.sigma,
+        phi:         fp.phi,
+        deltaHPrime: fp.delta_h,
+        k:           fp.k,
+        genre:       fp.genre,
+        timestamp:   Date.now(),
+      } : null;
+
+      setResult({
+        status: data.status,
+        reason: data.reason,
+        jule:   data.jule,
+        net:    data.net,
+        fp:     normalizedFp,
+        genre:  fp?.genre,
+      });
+
+      // 履歴更新（Φ計算用ハッシュをAPIに渡すため保持）
+      const contentHash = text.trim().split(/\s+/).slice(0, 5).join("_");
+      if (data.status === "ISSUED") {
+        setHistory(h => [...h.slice(-9), contentHash]);
+      }
+      saveScore({ text: text.slice(0, 40), net: data.net });
+      setRanking(getRanking());
+      setInsight(null);
+
+    } catch (e: any) {
+      addLog(`NETWORK ERROR: ${e.message}`, C.red);
+    } finally {
+      setTimeout(() => setPulse(false), 600);
     }
-    addLog(`L1 PASS → k=${k} (${K_LABEL[category]})`, C.green);
-
-    const contentHash = text.split(" ").slice(0, 5).join("_");
-    const phi = history.length === 0 ? 0
-      : 1 - Math.exp(-2 * history.map(h => jaccard(contentHash, h)).reduce((a, b) => a + b, 0) / history.length);
-    addLog(`Φ = ${phi.toFixed(3)}${phi > 0.95 ? " → BURN" : " ✓"}`, phi > 0.95 ? C.red : C.purple);
-    if (phi > 0.95) { setResult({ status: "BURN", reason: "Duplicate", jule: 0, net: -10 }); setPulse(true); setTimeout(() => setPulse(false), 600); return; }
-
-    const vScores = [v, Math.max(0, v - 8), Math.min(100, v + 5)];
-    const mean = vScores.reduce((a, b) => a + b, 0) / vScores.length;
-    const sigma = Math.exp(-vScores.reduce((a, b) => a + (b - mean) ** 2, 0) / vScores.length / 100);
-    addLog(`Σ = ${sigma.toFixed(3)}`, C.purple);
-
-    const genre = detectGenre(text), genreBonus = genre === "CROSS" ? 1.2 : 1.0;
-    addLog(`γ = ${genre}${genreBonus > 1 ? " (+20%)" : ""}`, GENRE_COLOR[genre] || C.muted);
-
-    const decay = Math.pow(0.5, repetition);
-    const deltaHFin = (v / 100) * usefulRatio * sigma * decay * genreBonus;
-    if (repetition > 0) addLog(`decay = (1/2)^${repetition} = ${decay.toFixed(4)}`, C.gold);
-    if (repetition >= 11) {
-      addLog("BURN → Echo Chamber", C.red);
-      setResult({ status: "BURN", reason: "Echo Chamber", jule: 0, net: -10 });
-      return;
-    }
-
-    const cost_mult = phi > 0.7 ? Math.exp(3 * (phi - 0.7)) : 1.0;
-    const f_sigma_phi = sigma * (1 - phi) / cost_mult;
-    const jule = Math.min(100, Math.tanh(v / 50) * deltaHFin * reputation * k * f_sigma_phi * 100);
-    const net = jule - 10;
-    addLog(`J = ${jule.toFixed(2)} | net = ${net.toFixed(2)}`, net >= 0 ? C.green : C.red);
-    addLog(net >= 0 ? "STATUS: ISSUED ✓" : "STATUS: BURN", net >= 0 ? C.accent : C.red);
-
-    const fp = { v, sigma, phi, deltaHPrime: deltaHFin, k, genre, timestamp: Date.now() };
-    setResult({ status: net >= 0 ? "ISSUED" : "BURN", jule, net, fp, genre });
-    setHistory(h => [...h.slice(-9), contentHash]);
-    saveScore({ text: text.slice(0, 40), net });
-    setRanking(getRanking());
-    setInsight(null); // 新しい結果のたびにΔ解説をリセット
-    setPulse(true); setTimeout(() => setPulse(false), 600);
   };
 
   const mintSeed = async () => {
