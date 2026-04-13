@@ -12,6 +12,10 @@ const getUserId = () => {
   if (!id) { id = "U-" + Math.random().toString(36).slice(2,10).toUpperCase(); localStorage.setItem("jule_user_id", id); }
   return id;
 };
+const API = window.location.hostname.includes("vercel.app")
+  ? ""
+  : "https://jule-ai-energy.vercel.app";
+
 const saveScore = (entry) => {
   const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   data.push(entry); data.sort((a,b)=>b.net-a.net);
@@ -107,18 +111,17 @@ export default function JuleDemo() {
   };
 
   useEffect(()=>{
-  setRanking(getRanking());
-  const p = new URLSearchParams(window.location.search);
-  const seedParam = p.get("seed");
-  if (seedParam) {
-    const s = decode(seedParam);
-    if (s) { setMySeeds(prev=>[...prev,s]); addSeedLog("SEED IMPORTED from URL",C.accent); }
-  }
-  // 市場一覧を取得
-  fetch("/api/market").then(r=>r.json()).then(d=>{
-    if (d.listings) setMarket(d.listings);
-  }).catch(()=>{});
-},[]);
+    setRanking(getRanking());
+    const p = new URLSearchParams(window.location.search);
+    const seedParam = p.get("seed");
+    if (seedParam) {
+      const s = decode(seedParam);
+      if (s) { setMySeeds(prev=>[...prev,s]); addSeedLog("SEED IMPORTED from URL",C.accent); }
+    }
+    fetch(`${API}/api/market`).then(r=>r.json()).then(d=>{
+      if (d.listings) setMarket(d.listings);
+    }).catch(()=>{});
+  },[]);
 
   const jaccard = (a,b) => {
     const A=new Set(a.split(" ")),B=new Set(b.split(" "));
@@ -161,54 +164,54 @@ export default function JuleDemo() {
   };
 
   const mintSeed = async () => {
-  if (!result || result.status !== "ISSUED") { addSeedLog("ISSUEDのみMINT可能", C.red); return; }
-  try {
-    const userId = getUserId();
-    const res = await fetch("/api/mint", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ userId, text, qualityScore: result.jule, genre: result.genre })
-    });
-    const data = await res.json();
-    if (!data.seed) throw new Error(data.error || "MINT失敗");
-    setMySeeds(prev=>[...prev, data.seed]);
-    setResult(null); setText("");
-    setTimeout(()=>setTab("market"),50);
-    addSeedLog(`MINT → ${data.seed.id}`, C.accent);
-  } catch(e: any) { addSeedLog("MINT失敗: " + e.message, C.red); }
-};
+    if (!result || result.status !== "ISSUED") { addSeedLog("ISSUEDのみMINT可能", C.red); return; }
+    try {
+      const userId = getUserId();
+      const res = await fetch(`${API}/api/mint`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ userId, text, qualityScore: result.jule, genre: result.genre })
+      });
+      const data = await res.json();
+      if (!data.seed) throw new Error(data.error || "MINT失敗");
+      setMySeeds(prev=>[...prev, data.seed]);
+      setResult(null); setText("");
+      setTimeout(()=>setTab("market"),50);
+      addSeedLog(`MINT → ${data.seed.id}`, C.accent);
+    } catch(e: any) { addSeedLog("MINT失敗: " + e.message, C.red); }
+  };
 
   const listSeed = async (seed: any) => {
-  const price = Math.max(20, Math.floor(seed.qualityScore * seed.compressionRatio * 0.8));
-  try {
-    const userId = getUserId();
-    const res = await fetch("/api/market", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ userId, seedId: seed.id, price })
-    });
-    const data = await res.json();
-    if (!data.listingId) throw new Error(data.error || "出品失敗");
-    setMySeeds(prev=>prev.filter(s=>s.id!==seed.id));
-    setMarket(prev=>[...prev,{id:data.listingId, seed, price}]);
-    addSeedLog(`出品 → ${seed.id} (${price} JULE)`, C.gold);
-  } catch(e: any) { addSeedLog("出品失敗: " + e.message, C.red); }
-};
+    const price = Math.max(20, Math.floor(seed.qualityScore * seed.compressionRatio * 0.8));
+    try {
+      const userId = getUserId();
+      const res = await fetch(`${API}/api/market`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ userId, seedId: seed.id, price })
+      });
+      const data = await res.json();
+      if (!data.listingId) throw new Error(data.error || "出品失敗");
+      setMySeeds(prev=>prev.filter(s=>s.id!==seed.id));
+      setMarket(prev=>[...prev,{id:data.listingId, seed, price}]);
+      addSeedLog(`出品 → ${seed.id} (${price} JULE)`, C.gold);
+    } catch(e: any) { addSeedLog("出品失敗: " + e.message, C.red); }
+  };
 
   const buy = async (listing: any) => {
-  if (juleBalance < listing.price) { addSeedLog("JULE不足", C.red); return; }
-  try {
-    const userId = getUserId();
-    const res = await fetch("/api/buy", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ userId, listingId: listing.id })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || "購入失敗");
-    setJB(data.balance);
-    setMySeeds(prev=>[...prev, listing.seed]);
-    setMarket(prev=>prev.filter(l=>l.id!==listing.id));
-    addSeedLog(`購入 → ${listing.seed.id}`, C.green);
-  } catch(e: any) { addSeedLog("購入失敗: " + e.message, C.red); }
-};
+    if (juleBalance < listing.price) { addSeedLog("JULE不足", C.red); return; }
+    try {
+      const userId = getUserId();
+      const res = await fetch(`${API}/api/buy`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ userId, listingId: listing.id })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "購入失敗");
+      setJB(data.balance);
+      setMySeeds(prev=>[...prev, listing.seed]);
+      setMarket(prev=>prev.filter(l=>l.id!==listing.id));
+      addSeedLog(`購入 → ${listing.seed.id}`, C.green);
+    } catch(e: any) { addSeedLog("購入失敗: " + e.message, C.red); }
+  };
 
   const shareSeed = (seed) => {
     const url=`${window.location.origin}${window.location.pathname}?seed=${encode(seed)}`;
