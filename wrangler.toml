@@ -1,0 +1,7 @@
+name = "jule-ai-energy"
+pages_build_output_dir = "./dist" # Viteのビルド先を指定
+
+# ルーティングを既存の api/ に合わせる設定
+[[routes]]
+pattern = "/api/*"
+script = "src/index.ts" # あるいは Workers用のエントリーポイント
