@@ -12,7 +12,7 @@ const getUserId = () => {
   if (!id) { id = "U-" + Math.random().toString(36).slice(2,10).toUpperCase(); localStorage.setItem("jule_user_id", id); }
   return id;
 };
-const API = window.location.hostname.includes("vercel.app")
+const API = typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
   ? ""
   : "https://jule-ai-energy.vercel.app";
 
