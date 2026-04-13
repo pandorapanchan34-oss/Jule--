@@ -1,15 +1,15 @@
 // ─────────────────────────────────────────────
 // api/audit.ts  ── ルール管理者
-// 入力チェック → CORE呼び出し → 結果返却
+// 入力チェック → buildFingerprint6 → calculateJule
 // ─────────────────────────────────────────────
 export const config = { runtime: 'nodejs' };
 
 import { buildFingerprint6 }           from '../src/fingerprint/fingerprint6';
 import { calculateJule, calculateNet } from '../src/core/jule-calculator';
+import type { JuleAuditFingerprint }   from '../src/types/index';
 
 const POSTING_COST = 10;
 
-// ── カテゴリ係数 ─────────────────────────────
 const K_MAP: Record<string, number> = {
   SAFE:             1.0,
   OVERLOAD:         0.5,
@@ -18,7 +18,6 @@ const K_MAP: Record<string, number> = {
   ETHICS_VIOLATION: 0.0,
 };
 
-// ── ハンドラ ─────────────────────────────────
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -27,17 +26,17 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method Not Allowed' });
 
-  // ── 入力チェック ────────────────────────────
   const {
     text,
-    v           = 70,
-    usefulRatio = 0.75,
-    reputation  = 0.5,
-    category    = 'SAFE',
-    repetition  = 0,
-    history     = [],
+    v                   = 70,
+    usefulRatio         = 0.75,
+    reputation          = 0.5,
+    category            = 'SAFE',
+    repetition          = 0,
+    historyFingerprints = [],   // JuleAuditFingerprint[] をフロントから受け取る
   } = req.body || {};
 
+  // ── バリデーション ───────────────────────────
   if (!text || typeof text !== 'string' || !text.trim())
     return res.status(400).json({ error: 'Missing or empty text' });
   if (v < 0 || v > 100)
@@ -51,58 +50,50 @@ export default async function handler(req: any, res: any) {
   const k = K_MAP[category] ?? 1.0;
   if (k === 0.0) {
     return res.status(200).json({
-      status:      'BURN',
-      reason:      'ETHICS_VIOLATION',
-      jule:        0,
-      net:         -POSTING_COST,
-      fingerprint: null,
+      status: 'BURN', reason: 'ETHICS_VIOLATION',
+      jule: 0, net: -POSTING_COST, fingerprint: null,
     });
   }
 
-  // ── fingerprint6 で6軸計算（唯一の真実）──────
+  // ── 6軸フィンガープリント計算 ─────────────────
   const fp = buildFingerprint6({
     text,
     v,
     usefulRatio,
     k,
-    historyHashes: Array.isArray(history) ? history : [],
+    historyFingerprints: Array.isArray(historyFingerprints)
+      ? historyFingerprints as JuleAuditFingerprint[]
+      : [],
     repetition,
   });
 
   // Φ過剰 → BURN
   if (fp.phi_inertia > 0.95) {
     return res.status(200).json({
-      status:      'BURN',
-      reason:      'DUPLICATE',
-      jule:        0,
-      net:         -POSTING_COST,
-      fingerprint: fp,
+      status: 'BURN', reason: 'DUPLICATE',
+      jule: 0, net: -POSTING_COST, fingerprint: fp,
     });
   }
 
   // Echo chamber → BURN
   if (repetition >= 11) {
     return res.status(200).json({
-      status:      'BURN',
-      reason:      'ECHO_CHAMBER',
-      jule:        0,
-      net:         -POSTING_COST,
-      fingerprint: fp,
+      status: 'BURN', reason: 'ECHO_CHAMBER',
+      jule: 0, net: -POSTING_COST, fingerprint: fp,
     });
   }
 
-  // ── JULE計算（jule-calculator.tsに委譲）──────
+  // ── JULE計算 ─────────────────────────────────
   const jule = calculateJule({
     v,
-    delta_h:    fp.delta_h_effective,  // 減衰・genreBonus済みの値
+    delta_h:   fp.delta_h_effective,
     reputation,
     k,
-    sigma:      fp.sigma_singularity,
-    phi:        fp.phi_inertia,
+    sigma:     fp.sigma_singularity,
+    phi:       fp.phi_inertia,
   });
   const net = calculateNet(jule);
 
-  // ── レスポンス ───────────────────────────────
   return res.status(200).json({
     status: net >= 0 ? 'ISSUED' : 'BURN',
     jule:   Math.round(jule * 100) / 100,
