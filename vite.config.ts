@@ -1,14 +1,16 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const isGHPages = process.env.GITHUB_PAGES === 'true';
-
 export default defineConfig({
   plugins: [react()],
-  root: 'demo',
+
+  // root: 'demo' は一旦コメントアウト or 削除（Vercelでは不要）
+  // root: 'demo',
+
   build: {
-    outDir: isGHPages ? '../dist-demo' : '../dist',
+    outDir: 'dist',           // Vercel用に固定
     emptyOutDir: true,
   },
-  base: isGHPages ? '/jule-ai-energy/' : './',
+
+  base: '/',                  // ← これが超重要！Vercelでは絶対これ
 });
