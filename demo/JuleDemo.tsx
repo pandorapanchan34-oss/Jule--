@@ -155,7 +155,6 @@ export default function JuleDemo() {
   const [v, setV]               = useState(72);
   const [usefulRatio, setUR]    = useState(0.75);
   const [reputation, setRep]    = useState(0.5);
-  const [category, setCategory] = useState("SAFE");
   const [repetition, setRep2]   = useState(0);
   const [result, setResult]     = useState<any>(null);
   const [log, setLog]           = useState<any[]>([]);
