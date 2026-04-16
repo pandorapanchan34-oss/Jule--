@@ -175,6 +175,7 @@ export default function JuleDemo() {
   const [market, setMarket]     = useState<any[]>([]);
   const [juleBalance, setJB]    = useState(500);
   const [seedLog, setSeedLog]   = useState<any[]>([]);
+  const [category, setCategory] = useState("SAFE");
   // ✅ マーケットのロード状態を管理（真っ白防止）
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError]     = useState<string | null>(null);
