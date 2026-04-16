@@ -80,17 +80,7 @@ const detectGenre = (text: string) => {
   if (d.length >= 3) return "CROSS";
   return d.sort((a, b) => b[1] - a[1])[0][0];
 };
-// 🔽 追加：CATEGORY自動判定
-const detectCategory = (text: string): string => {
-  const lower = text.toLowerCase();
 
-  if (/(kill|bomb|crime|違法|犯罪|テロ)/.test(lower)) return "ETHICS_VIOLATION";
-  if (/(破綻|矛盾|nonsense|contradiction)/.test(lower)) return "LOGIC_COLLAPSE";
-  if (/(感情|怒り|hate|emotion)/.test(lower)) return "ADVERSARIAL";
-  if (/(copy|既知|repeat|テンプレ)/.test(lower)) return "OVERLOAD";
-
-  return "SAFE";
-};
 const K_MAP: Record<string, number> = {
   SAFE: 1.0, OVERLOAD: 0.5, ADVERSARIAL: 0.3, LOGIC_COLLAPSE: 0.1, ETHICS_VIOLATION: 0.0,
 };
@@ -165,6 +155,7 @@ export default function JuleDemo() {
   const [v, setV]               = useState(72);
   const [usefulRatio, setUR]    = useState(0.75);
   const [reputation, setRep]    = useState(0.5);
+  const [category, setCategory] = useState("SAFE");
   const [repetition, setRep2]   = useState(0);
   const [result, setResult]     = useState<any>(null);
   const [log, setLog]           = useState<any[]>([]);
@@ -175,7 +166,6 @@ export default function JuleDemo() {
   const [market, setMarket]     = useState<any[]>([]);
   const [juleBalance, setJB]    = useState(500);
   const [seedLog, setSeedLog]   = useState<any[]>([]);
-  const [category, setCategory] = useState("SAFE");
   // ✅ マーケットのロード状態を管理（真っ白防止）
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError]     = useState<string | null>(null);
@@ -231,88 +221,56 @@ export default function JuleDemo() {
   };
 
   const runAudit = () => {
-  if (!text.trim()) { addLog("ERROR: empty transmission", C.red); return; }
+    if (!text.trim()) { addLog("ERROR: empty transmission", C.red); return; }
+    addLog("── AUDIT INITIATED ──", "#2a3a50");
+    addLog(`TX: "${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`, C.muted);
 
-  addLog("── AUDIT INITIATED ──", "#2a3a50");
-  addLog(`TX: "${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`, C.muted);
+    const k = K_MAP[category] ?? 1.0;
+    if (k === 0.0) {
+      addLog("L1 BURN → 反社会的", C.red);
+      setResult({ status: "BURN", reason: "反社会的", jule: 0, net: -10 });
+      setPulse(true); setTimeout(() => setPulse(false), 600);
+      return;
+    }
+    addLog(`L1 PASS → k=${k} (${K_LABEL[category]})`, C.green);
 
-  // ✅ 自動カテゴリ判定
-  const detectedCategory = detectCategory(text);
-  const k = K_MAP[detectedCategory] ?? 1.0;
+    const contentHash = text.split(" ").slice(0, 5).join("_");
+    const phi = history.length === 0 ? 0
+      : 1 - Math.exp(-2 * history.map(h => jaccard(contentHash, h)).reduce((a, b) => a + b, 0) / history.length);
+    addLog(`Φ = ${phi.toFixed(3)}${phi > 0.95 ? " → BURN" : " ✓"}`, phi > 0.95 ? C.red : C.purple);
+    if (phi > 0.95) { setResult({ status: "BURN", reason: "Duplicate", jule: 0, net: -10 }); setPulse(true); setTimeout(() => setPulse(false), 600); return; }
 
-  addLog(`CATEGORY → ${K_LABEL[detectedCategory]}`, GENRE_COLOR[detectGenre(text)]);
+    const vScores = [v, Math.max(0, v - 8), Math.min(100, v + 5)];
+    const mean = vScores.reduce((a, b) => a + b, 0) / vScores.length;
+    const sigma = Math.exp(-vScores.reduce((a, b) => a + (b - mean) ** 2, 0) / vScores.length / 100);
+    addLog(`Σ = ${sigma.toFixed(3)}`, C.purple);
 
-  if (k === 0.0) {
-    addLog("L1 BURN → 反社会的", C.red);
-    setResult({ status: "BURN", reason: "反社会的", jule: 0, net: -10, category: detectedCategory });
+    const genre = detectGenre(text), genreBonus = genre === "CROSS" ? 1.2 : 1.0;
+    addLog(`γ = ${genre}${genreBonus > 1 ? " (+20%)" : ""}`, GENRE_COLOR[genre] || C.muted);
+
+    const decay = Math.pow(0.5, repetition);
+    const deltaHFin = (v / 100) * usefulRatio * sigma * decay * genreBonus;
+    if (repetition > 0) addLog(`decay = (1/2)^${repetition} = ${decay.toFixed(4)}`, C.gold);
+    if (repetition >= 11) {
+      addLog("BURN → Echo Chamber", C.red);
+      setResult({ status: "BURN", reason: "Echo Chamber", jule: 0, net: -10 });
+      return;
+    }
+
+    const cost_mult = phi > 0.7 ? Math.exp(3 * (phi - 0.7)) : 1.0;
+    const f_sigma_phi = sigma * (1 - phi) / cost_mult;
+    const jule = Math.min(100, Math.tanh(v / 50) * deltaHFin * reputation * k * f_sigma_phi * 100);
+    const net = jule - 10;
+    addLog(`J = ${jule.toFixed(2)} | net = ${net.toFixed(2)}`, net >= 0 ? C.green : C.red);
+    addLog(net >= 0 ? "STATUS: ISSUED ✓" : "STATUS: BURN", net >= 0 ? C.accent : C.red);
+
+    const fp = { v, sigma, phi, deltaHPrime: deltaHFin, k, genre, timestamp: Date.now() };
+    setResult({ status: net >= 0 ? "ISSUED" : "BURN", jule, net, fp, genre });
+    setHistory(h => [...h.slice(-9), contentHash]);
+    saveScore({ text: text.slice(0, 40), net });
+    setRanking(getRanking());
     setPulse(true); setTimeout(() => setPulse(false), 600);
-    return;
-  }
-
-  addLog(`L1 PASS → k=${k}`, C.green);
-
-  const contentHash = text
-  .toLowerCase()
-  .replace(/[^\w\s]/g, "")
-  .split(/\s+/)
-  .filter(w => w.length > 3)
-  .slice(0, 8)
-  .join("_");
-  const phi = history.length === 0 ? 0
-    : 1 - Math.exp(-2 * history.map(h => jaccard(contentHash, h)).reduce((a, b) => a + b, 0) / history.length);
-
-  addLog(`Φ = ${phi.toFixed(3)}${phi > 0.95 ? " → BURN" : " ✓"}`, phi > 0.95 ? C.red : C.purple);
-
-  if (phi > 0.95) {
-    setResult({ status: "BURN", reason: "Duplicate", jule: 0, net: -10, category: detectedCategory });
-    return;
-  }
-
-  const vScores = [v, Math.max(0, v - 8), Math.min(100, v + 5)];
-  const mean = vScores.reduce((a, b) => a + b, 0) / vScores.length;
-  const sigma = Math.exp(-vScores.reduce((a, b) => a + (b - mean) ** 2, 0) / vScores.length / 100);
-
-  addLog(`Σ = ${sigma.toFixed(3)}`, C.purple);
-
-  const genre = detectGenre(text);
-  const genreBonus = genre === "CROSS" ? 1.2 : 1.0;
-
-  addLog(`γ = ${genre}${genreBonus > 1 ? " (+20%)" : ""}`, GENRE_COLOR[genre] || C.muted);
-
-  const decay = Math.pow(0.5, repetition);
-  const deltaHFin = (v / 100) * usefulRatio * sigma * decay * genreBonus;
-
-  if (repetition >= 11) {
-    addLog("BURN → Echo Chamber", C.red);
-    setResult({ status: "BURN", reason: "Echo Chamber", jule: 0, net: -10, category: detectedCategory });
-    return;
-  }
-
-  const cost_mult = phi > 0.7 ? Math.exp(3 * (phi - 0.7)) : 1.0;
-  const f_sigma_phi = sigma * (1 - phi) / cost_mult;
-
-  const jule = Math.min(100,
-    Math.tanh(v / 50) * deltaHFin * reputation * k * f_sigma_phi * 100
-  );
-
-  const net = jule - 10;
-
-  addLog(`J = ${jule.toFixed(2)} | net = ${net.toFixed(2)}`, net >= 0 ? C.green : C.red);
-  addLog(net >= 0 ? "STATUS: ISSUED ✓" : "STATUS: BURN", net >= 0 ? C.accent : C.red);
-
-  const fp = { v, sigma, phi, deltaHPrime: deltaHFin, k, genre, category: detectedCategory };
-
-  setResult({
-    status: net >= 0 ? "ISSUED" : "BURN",
-    jule, net, fp, genre, category: detectedCategory
-  });
-
-  setHistory(h => [...h.slice(-9), contentHash]);
-  saveScore({ text: text.slice(0, 40), net });
-  setRanking(getRanking());
-
-  setPulse(true); setTimeout(() => setPulse(false), 600);
-};
+  };
 
   const mintSeed = async () => {
     if (!result || result.status !== "ISSUED") { addSeedLog("ISSUEDのみMINT可能", C.red); return; }
@@ -535,17 +493,6 @@ export default function JuleDemo() {
                     <span style={{ fontSize: 10 }}>AUDIT → MINT してみて</span>
                   </div>
                 )}
-                {result?.category && (
-  <span style={{
-    fontSize: 9,
-    padding: "2px 6px",
-    borderRadius: 3,
-    border: `1px solid ${C.red}44`,
-    color: C.red,
-  }}>
-    {K_LABEL[result.category]}
-  </span>
-)}
                 {mySeeds.map(seed => (
                   <div key={seed.id} style={{ border: `1px dashed ${C.green}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
