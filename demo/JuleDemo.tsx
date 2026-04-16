@@ -530,7 +530,7 @@ export default function JuleDemo() {
                     <span style={{ fontSize: 10 }}>AUDIT → MINT してみて</span>
                   </div>
                 )}
-                {result.category && (
+                {result?.category && (
   <span style={{
     fontSize: 9,
     padding: "2px 6px",
