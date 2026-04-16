@@ -492,6 +492,17 @@ export default function JuleDemo() {
                     <span style={{ fontSize: 10 }}>AUDIT → MINT してみて</span>
                   </div>
                 )}
+                {result.category && (
+  <span style={{
+    fontSize: 9,
+    padding: "2px 6px",
+    borderRadius: 3,
+    border: `1px solid ${C.red}44`,
+    color: C.red,
+  }}>
+    {K_LABEL[result.category]}
+  </span>
+)}
                 {mySeeds.map(seed => (
                   <div key={seed.id} style={{ border: `1px dashed ${C.green}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
