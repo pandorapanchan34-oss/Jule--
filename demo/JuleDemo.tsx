@@ -54,39 +54,19 @@ const decode = (str: string) => {
   catch { return null; }
 };
 
-const GENRE_KEYWORDS: Record<string, string[]> = {
-  PHYSICS: ["galaxy", "rotation", "quantum", "spacetime", "entropy", "pandora", "tau", "sparc"],
-  MATH: ["proof", "theorem", "equation", "derive", "axiom", "convergence", "fixed point"],
-  AI_SAFETY: ["hallucination", "alignment", "safety", "audit", "burn", "aspidos", "jule", "shredder"],
-  ECONOMICS: ["token", "economy", "incentive", "market", "capital", "reward", "trade"],
-  CONSCIOUSNESS: ["consciousness", "qualia", "awareness", "omega", "unitas"],
-  ENGINEERING: ["code", "implement", "deploy", "api", "function", "architecture"],
+// ── UI表示用定数（計算はAPIに委譲済み）────────────────
+
+// カテゴリボタンのラベル表示用
+const K_LABEL: Record<string, string> = {
+  SAFE: "安全", OVERLOAD: "既知情報", ADVERSARIAL: "情緒過多",
+  LOGIC_COLLAPSE: "論理破綻", ETHICS_VIOLATION: "反社会的",
 };
+
+// ジャンル色表示用
 const GENRE_COLOR: Record<string, string> = {
   PHYSICS: "#00f5ff", MATH: "#a78bfa", AI_SAFETY: "#34d399",
   ECONOMICS: "#fbbf24", CONSCIOUSNESS: "#f472b6", ENGINEERING: "#60a5fa",
   CROSS: "#ff6b35", OTHER: "#6b7280",
-};
-
-const detectGenre = (text: string) => {
-  const lower = text.toLowerCase();
-  const scores: Record<string, number> = {};
-  for (const [genre, kws] of Object.entries(GENRE_KEYWORDS)) {
-    const hits = kws.filter(k => lower.includes(k)).length;
-    if (hits > 0) scores[genre] = hits;
-  }
-  const d = Object.entries(scores);
-  if (d.length === 0) return "OTHER";
-  if (d.length >= 3) return "CROSS";
-  return d.sort((a, b) => b[1] - a[1])[0][0];
-};
-
-const K_MAP: Record<string, number> = {
-  SAFE: 1.0, OVERLOAD: 0.5, ADVERSARIAL: 0.3, LOGIC_COLLAPSE: 0.1, ETHICS_VIOLATION: 0.0,
-};
-const K_LABEL: Record<string, string> = {
-  SAFE: "安全", OVERLOAD: "既知情報", ADVERSARIAL: "情緒過多",
-  LOGIC_COLLAPSE: "論理破綻", ETHICS_VIOLATION: "反社会的",
 };
 
 // ── UI コンポーネント ──────────────────────────────────────
@@ -112,6 +92,49 @@ const Gauge = ({ label, value, max = 1, color = C.accent }: any) => {
     </div>
   );
 };
+
+const getAdvice = (label: string, diff: number) => {
+  if (diff > 0.2)  return `${label}が過大評価。もっと厳しく見るべき`;
+  if (diff < -0.2) return `${label}が過小評価。もっと自信を持て`;
+  return `${label}は適正レンジ`;
+};
+
+const DiffBar = ({ label, expected, actual }: any) => {
+  const diff = actual - expected;
+  const abs  = Math.abs(diff);
+  const color = abs > 0.2 ? C.red : abs > 0.05 ? C.gold : C.green;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, color: C.muted }}>{label}</span>
+        <span style={{ fontSize: 10, color }}>Δ {diff > 0 ? "+" : ""}{diff.toFixed(2)}</span>
+      </div>
+      <div style={{ height: 4, background: "#1a2030", borderRadius: 2 }}>
+        <div style={{
+          width: `${Math.min(100, actual * 100)}%`, height: "100%",
+          background: color, transition: "0.4s",
+        }} />
+      </div>
+      <div style={{ fontSize: 9, color: C.muted }}>
+        予測:{expected.toFixed(2)} / 実測:{actual.toFixed(2)}
+      </div>
+    </div>
+  );
+};
+
+const DiffInsight = ({ diffs }: any) => (
+  <div style={{
+    marginTop: 10, padding: 10, background: "#060b10",
+    border: `1px solid ${C.border}`, borderRadius: 6,
+  }}>
+    <div style={{ fontSize: 10, color: C.accent, marginBottom: 6 }}>Δ INSIGHT</div>
+    {diffs.map((d: any, i: number) => (
+      <div key={i} style={{ fontSize: 10, color: C.muted }}>
+        • {getAdvice(d.label, d.diff)}
+      </div>
+    ))}
+  </div>
+);
 
 const TermLog = ({ lines }: { lines: any[] }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -159,7 +182,7 @@ export default function JuleDemo() {
   const [repetition, setRep2]   = useState(0);
   const [result, setResult]     = useState<any>(null);
   const [log, setLog]           = useState<any[]>([]);
-  const [history, setHistory]   = useState<string[]>([]);
+  const [history, setHistory]   = useState<any[]>([]); // JuleAuditFingerprint[]
   const [pulse, setPulse]       = useState(false);
   const [ranking, setRanking]   = useState<any[]>([]);
   const [mySeeds, setMySeeds]   = useState<any[]>([]);
@@ -169,6 +192,8 @@ export default function JuleDemo() {
   // ✅ マーケットのロード状態を管理（真っ白防止）
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError]     = useState<string | null>(null);
+  const [insight, setInsight]             = useState<any>(null);
+  const [auditing, setAuditing]           = useState(false); // 判定中フラグ
 
   const addLog = (text: string, color = C.green) => {
     const time = new Date().toTimeString().slice(0, 8);
@@ -214,62 +239,88 @@ export default function JuleDemo() {
       .finally(() => setMarketLoading(false));
   }, []);
 
-  const jaccard = (a: string, b: string) => {
-    const A = new Set(a.split(" ")), B = new Set(b.split(" "));
-    const inter = [...A].filter(x => B.has(x)).length;
-    return inter / (A.size + B.size - inter);
-  };
-
-  const runAudit = () => {
+  const runAudit = async () => {
     if (!text.trim()) { addLog("ERROR: empty transmission", C.red); return; }
     addLog("── AUDIT INITIATED ──", "#2a3a50");
     addLog(`TX: "${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`, C.muted);
+    setPulse(true);
+    setAuditing(true); // カテゴリボタンをロック
 
-    const k = K_MAP[category] ?? 1.0;
-    if (k === 0.0) {
-      addLog("L1 BURN → 反社会的", C.red);
-      setResult({ status: "BURN", reason: "反社会的", jule: 0, net: -10 });
-      setPulse(true); setTimeout(() => setPulse(false), 600);
-      return;
+    try {
+      const res = await fetch(`${API}/api/audit`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        // categoryはAPIが自動判定するので送らない
+        body: JSON.stringify({ text, v, usefulRatio, reputation, repetition, historyFingerprints: history }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        addLog(`API ERROR: ${err.error}`, C.red);
+        return;
+      }
+
+      const data = await res.json();
+      const fp   = data.fingerprint;
+
+      // APIが判定したカテゴリをボタンに反映
+      if (data.category) setCategory(data.category);
+
+      addLog(`L1 → ${data.category ?? "SAFE"} (k=${data.fingerprint?.k ?? 1})`, C.green);
+        addLog(`Σ = ${fp.sigma?.toFixed(3)}`,     C.purple);
+        addLog(`Φ = ${fp.phi?.toFixed(3)}${fp.phi > 0.95 ? " → BURN" : " ✓"}`, fp.phi > 0.95 ? C.red : C.purple);
+        addLog(`γ = ${fp.genre ?? "N/A"}`,         GENRE_COLOR[fp.genre] || C.muted);
+        addLog(`ΔH' = ${fp.delta_h?.toFixed(3)}`,  C.green);
+        addLog(`k = ${fp.k}`,                       C.gold);
+      }
+      addLog(`J = ${data.jule?.toFixed(2)} | net = ${data.net?.toFixed(2)}`, data.net >= 0 ? C.green : C.red);
+      addLog(data.status === "ISSUED" ? "STATUS: ISSUED ✓" : `STATUS: BURN (${data.reason ?? ""})`,
+             data.status === "ISSUED" ? C.accent : C.red);
+
+      // fp をフロント用に正規化（DiffBar が参照するキー名に合わせる）
+      const normalizedFp = fp ? {
+        v:           fp.v,
+        sigma:       fp.sigma,
+        phi:         fp.phi,
+        deltaHPrime: fp.delta_h,
+        k:           fp.k,
+        genre:       fp.genre,
+        timestamp:   Date.now(),
+      } : null;
+
+      setResult({
+        status: data.status,
+        reason: data.reason,
+        jule:   data.jule,
+        net:    data.net,
+        fp:     normalizedFp,
+        genre:  fp?.genre,
+      });
+
+      // ISSOEDのときだけhistoryにfingerprintを積む（Φ計算用）
+      if (data.status === "ISSUED" && normalizedFp) {
+        const historyEntry = {
+          v_score:           normalizedFp.v,
+          sigma_singularity: normalizedFp.sigma,
+          phi_inertia:       normalizedFp.phi,
+          delta_h_prime:     normalizedFp.deltaHPrime ?? 0,
+          k_reality:         normalizedFp.k ?? 1.0,
+          gamma_genre:       normalizedFp.genre ?? "OTHER",
+          delta_h_effective: normalizedFp.deltaHPrime ?? 0,
+          repetition_count:  repetition,
+        };
+        setHistory(h => [...h.slice(-9), historyEntry]);
+      }
+      saveScore({ text: text.slice(0, 40), net: data.net });
+      setRanking(getRanking());
+      setInsight(null);
+
+    } catch (e: any) {
+      addLog(`NETWORK ERROR: ${e.message}`, C.red);
+    } finally {
+      setTimeout(() => setPulse(false), 600);
+      setAuditing(false); // カテゴリボタンのロック解除
     }
-    addLog(`L1 PASS → k=${k} (${K_LABEL[category]})`, C.green);
-
-    const contentHash = text.split(" ").slice(0, 5).join("_");
-    const phi = history.length === 0 ? 0
-      : 1 - Math.exp(-2 * history.map(h => jaccard(contentHash, h)).reduce((a, b) => a + b, 0) / history.length);
-    addLog(`Φ = ${phi.toFixed(3)}${phi > 0.95 ? " → BURN" : " ✓"}`, phi > 0.95 ? C.red : C.purple);
-    if (phi > 0.95) { setResult({ status: "BURN", reason: "Duplicate", jule: 0, net: -10 }); setPulse(true); setTimeout(() => setPulse(false), 600); return; }
-
-    const vScores = [v, Math.max(0, v - 8), Math.min(100, v + 5)];
-    const mean = vScores.reduce((a, b) => a + b, 0) / vScores.length;
-    const sigma = Math.exp(-vScores.reduce((a, b) => a + (b - mean) ** 2, 0) / vScores.length / 100);
-    addLog(`Σ = ${sigma.toFixed(3)}`, C.purple);
-
-    const genre = detectGenre(text), genreBonus = genre === "CROSS" ? 1.2 : 1.0;
-    addLog(`γ = ${genre}${genreBonus > 1 ? " (+20%)" : ""}`, GENRE_COLOR[genre] || C.muted);
-
-    const decay = Math.pow(0.5, repetition);
-    const deltaHFin = (v / 100) * usefulRatio * sigma * decay * genreBonus;
-    if (repetition > 0) addLog(`decay = (1/2)^${repetition} = ${decay.toFixed(4)}`, C.gold);
-    if (repetition >= 11) {
-      addLog("BURN → Echo Chamber", C.red);
-      setResult({ status: "BURN", reason: "Echo Chamber", jule: 0, net: -10 });
-      return;
-    }
-
-    const cost_mult = phi > 0.7 ? Math.exp(3 * (phi - 0.7)) : 1.0;
-    const f_sigma_phi = sigma * (1 - phi) / cost_mult;
-    const jule = Math.min(100, Math.tanh(v / 50) * deltaHFin * reputation * k * f_sigma_phi * 100);
-    const net = jule - 10;
-    addLog(`J = ${jule.toFixed(2)} | net = ${net.toFixed(2)}`, net >= 0 ? C.green : C.red);
-    addLog(net >= 0 ? "STATUS: ISSUED ✓" : "STATUS: BURN", net >= 0 ? C.accent : C.red);
-
-    const fp = { v, sigma, phi, deltaHPrime: deltaHFin, k, genre, timestamp: Date.now() };
-    setResult({ status: net >= 0 ? "ISSUED" : "BURN", jule, net, fp, genre });
-    setHistory(h => [...h.slice(-9), contentHash]);
-    saveScore({ text: text.slice(0, 40), net });
-    setRanking(getRanking());
-    setPulse(true); setTimeout(() => setPulse(false), 600);
   };
 
   const mintSeed = async () => {
@@ -394,15 +445,23 @@ export default function JuleDemo() {
                 ))}
               </div>
               <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>CATEGORY (L1)</div>
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 6 }}>
+                  CATEGORY (L1) {auditing ? "" : "— AUTO DETECTED"}
+                </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {Object.entries(K_LABEL).map(([key, label]) => (
-                    <button key={key} onClick={() => setCategory(key)} style={{
-                      padding: "3px 8px", fontSize: 9, borderRadius: 3, cursor: "pointer",
-                      border: `1px solid ${category === key ? C.accent : C.border}`,
-                      background: category === key ? "#001820" : C.panel,
-                      color: category === key ? C.accent : C.muted, transition: "all 0.2s",
-                    }}>{label}</button>
+                    <button key={key}
+                      disabled={auditing}
+                      onClick={() => !auditing && setCategory(key)}
+                      style={{
+                        padding: "3px 8px", fontSize: 9, borderRadius: 3,
+                        cursor: auditing ? "default" : "pointer",
+                        border: `1px solid ${category === key ? C.accent : C.border}`,
+                        background: category === key ? "#001820" : C.panel,
+                        color: category === key ? C.accent : C.muted,
+                        opacity: auditing && category !== key ? 0.3 : 1,
+                        transition: "all 0.2s",
+                      }}>{label}</button>
                   ))}
                 </div>
               </div>
@@ -427,6 +486,7 @@ export default function JuleDemo() {
                 border: `1px solid ${result.status === "ISSUED" ? "#00f5ff44" : "#ef444444"}`,
                 borderRadius: 8, padding: 14,
               }}>
+                {/* ヘッダー */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div style={{ fontSize: 14, fontWeight: 900, color: result.status === "ISSUED" ? C.accent : C.red }}>
                     {result.status === "ISSUED" ? "✓ ISSUED" : "✗ BURN"}
@@ -439,15 +499,19 @@ export default function JuleDemo() {
                     }}>{result.genre}</span>
                   )}
                 </div>
+
+                {/* 差分バー */}
                 {result.fp && (
                   <>
-                    <Gauge label="V score"    value={result.fp.v}           max={100} color={C.accent} />
-                    <Gauge label="ΔH' final"  value={result.fp.deltaHPrime} max={1}   color={C.green} />
-                    <Gauge label="Σ"          value={result.fp.sigma}       max={1}   color={C.purple} />
-                    <Gauge label="Φ"          value={result.fp.phi}         max={1}   color="#60a5fa" />
-                    <Gauge label="k"          value={result.fp.k}           max={1}   color={C.gold} />
+                    <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.12em", marginBottom: 8 }}>RESULT ANALYSIS</div>
+                    <DiffBar label="V (硬)"      expected={v / 100}         actual={result.fp.v / 100} />
+                    <DiffBar label="Useful (純)" expected={usefulRatio}     actual={result.fp.deltaHPrime} />
+                    <DiffBar label="R (徳)"      expected={reputation}      actual={reputation} />
+                    <DiffBar label="Rep× (旬)"   expected={repetition / 12} actual={1 - Math.pow(0.5, repetition)} />
                   </>
                 )}
+
+                {/* スコア */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
                   <div style={{ background: "#060b10", borderRadius: 6, padding: "8px 10px", border: `1px solid ${C.border}`, textAlign: "center" }}>
                     <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>JULE</div>
@@ -460,6 +524,29 @@ export default function JuleDemo() {
                     </div>
                   </div>
                 </div>
+
+                {/* Δ 解説ボタン */}
+                <button
+                  onClick={() => {
+                    if (!result.fp) return;
+                    setInsight([
+                      { label: "V",      diff: result.fp.v / 100     - v / 100 },
+                      { label: "Useful", diff: result.fp.deltaHPrime - usefulRatio },
+                      { label: "R",      diff: 0 },  // reputationはユーザー設定値=実測値
+                      { label: "Rep×",   diff: (1 - Math.pow(0.5, repetition)) - repetition / 12 },
+                    ]);
+                  }}
+                  style={{
+                    marginTop: 10, width: "100%", padding: 8,
+                    background: "#001820", border: `1px solid ${C.accent}`,
+                    color: C.accent, fontSize: 10, cursor: "pointer",
+                    fontFamily: "monospace", borderRadius: 4, letterSpacing: "0.1em",
+                  }}
+                >Δ 解説</button>
+
+                {insight && <DiffInsight diffs={insight} />}
+
+                {/* MINT ボタン */}
                 {result.status === "ISSUED" && (
                   <button onClick={mintSeed} style={{
                     marginTop: 10, width: "100%", padding: "8px",
@@ -532,24 +619,30 @@ export default function JuleDemo() {
                 {!marketLoading && !marketError && market.length === 0 && (
                   <div style={{ color: C.muted, fontSize: 11, textAlign: "center", padding: "20px 0" }}>出品なし</div>
                 )}
-                {!marketLoading && market.map(l => {
-                  // ✅ seed が undefined でもクラッシュしない
-                  if (!l || !l.seed) return null;
+                {!marketLoading && market.map((l, index) => {
+                  const seed = l?.seed;
+                  if (!l || !seed || !seed.id) {
+                    return (
+                      <div key={`invalid-${index}`} style={{ color: C.red, padding: 12, background: "#1a0a0a", borderRadius: 6, marginBottom: 8 }}>
+                        ⚠ Invalid listing data
+                      </div>
+                    );
+                  }
                   return (
-                    <div key={l.id} style={{ border: `1px solid ${C.accent}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                    <div key={l.id || `listing-${index}`} style={{ border: `1px solid ${C.accent}44`, borderRadius: 6, padding: 10, marginBottom: 8 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ color: C.accent, fontSize: 11, fontWeight: 700 }}>{l.seed.id}</span>
-                        <span style={{ color: C.gold, fontSize: 13, fontWeight: 900 }}>{l.price} JULE</span>
+                        <span style={{ color: C.accent, fontSize: 11, fontWeight: 700 }}>{seed.id}</span>
+                        <span style={{ color: C.gold, fontSize: 13, fontWeight: 900 }}>{l.price || 0} JULE</span>
                       </div>
                       <div style={{ fontSize: 9, color: C.muted, marginBottom: 8 }}>
-                        {l.seed.genre || l.seed.metadata?.topic || "OTHER"} | 品質: {(l.seed.qualityScore ?? 0).toFixed(1)}
+                        {seed.genre || seed.metadata?.topic || "OTHER"} | 品質: {Number(seed.qualityScore ?? 0).toFixed(1)}
                       </div>
                       <button onClick={() => buy(l)} style={{
                         width: "100%", padding: "6px", fontSize: 10,
                         background: "#001820", border: `1px solid ${C.accent}`,
                         borderRadius: 4, color: C.accent, cursor: "pointer",
                         fontFamily: "monospace", fontWeight: 700,
-                      }}>BUY ({l.price} JULE)</button>
+                      }}>BUY ({l.price || 0} JULE)</button>
                     </div>
                   );
                 })}
